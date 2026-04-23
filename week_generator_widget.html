@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Week Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: #f1f0ed;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.container {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e0deda;
+  padding: 28px;
+  width: 100%;
+  max-width: 480px;
+}
+
+.title { font-size: 16px; font-weight: 600; color: #111; margin-bottom: 4px; }
+.subtitle { font-size: 12px; color: #888; margin-bottom: 24px; font-family: 'DM Mono', monospace; }
+
+.field { margin-bottom: 16px; }
+.field label {
+  display: block; font-size: 11px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.07em;
+  color: #888; margin-bottom: 6px; font-family: 'DM Mono', monospace;
+}
+
+.field input {
+  width: 100%; padding: 8px 12px;
+  border: 1px solid #e0deda; border-radius: 7px;
+  font-family: 'DM Sans', sans-serif; font-size: 13px;
+  color: #111; background: #f8f7f5; outline: none;
+  transition: border-color 0.15s;
+}
+.field input:focus { border-color: #2d6a4f; background: #fff; }
+
+.preview {
+  background: #f8f7f5; border: 1px solid #e0deda;
+  border-radius: 7px; padding: 10px 12px;
+  font-family: 'DM Mono', monospace; font-size: 12px;
+  color: #2d6a4f; margin-bottom: 20px; min-height: 32px;
+}
+
+.btn {
+  width: 100%; padding: 11px;
+  background: #1a1916; color: #fff; border: none;
+  border-radius: 8px; font-family: 'DM Sans', sans-serif;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+.btn:hover { background: #2d6a4f; }
+.btn:active { transform: scale(0.98); }
+.btn:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+
+.log {
+  margin-top: 16px; max-height: 200px;
+  overflow-y: auto; display: flex; flex-direction: column; gap: 4px;
+}
+.log-item {
+  font-size: 11px; font-family: 'DM Mono', monospace;
+  padding: 5px 8px; border-radius: 5px;
+  background: #f8f7f5; color: #555;
+}
+.log-item.success { background: #d4edda; color: #1a7a40; }
+.log-item.error   { background: #fde8d0; color: #b35a0a; }
+.log-item.info    { background: #e8f0fe; color: #1a56db; }
+
+.divider { border: none; border-top: 1px solid #f0eeea; margin: 20px 0; }
+.section-title {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.07em; color: #aaa;
+  font-family: 'DM Mono', monospace; margin-bottom: 12px;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="title">📅 Week Generator</div>
+  <div class="subtitle">Auto-populate Week_List from Coverage</div>
+
+  <div class="section-title">Generate New Week</div>
+
+  <div class="field">
+    <label>Week Number</label>
+    <input type="number" id="weekNum" placeholder="e.g. 17" min="1" oninput="updatePreview()" />
+  </div>
+
+  <div class="field">
+    <label>Week Start Date (Sunday)</label>
+    <input type="date" id="weekDate" oninput="updatePreview()" />
+  </div>
+
+  <div class="field">
+    <label>Week Label Preview</label>
+    <div class="preview" id="preview">Fill in week number and date above</div>
+  </div>
+
+  <button class="btn" id="generateBtn" onclick="generate()">Generate Week Rows</button>
+
+  <div class="log" id="log"></div>
+</div>
+
+<script>
+  let tableId = null;
+
+  // Auto-detect next Sunday
+  window.onload = () => {
+    const today = new Date();
+    const day = today.getDay();
+    const daysUntilSunday = day === 0 ? 7 : 7 - day;
+    const nextSunday = new Date(today);
+    nextSunday.setDate(today.getDate() + daysUntilSunday);
+    document.getElementById('weekDate').value = nextSunday.toISOString().split('T')[0];
+    updatePreview();
+  };
+
+  // Grist setup
+  grist.ready({ requiredAccess: 'full' });
+
+  function updatePreview() {
+    const num = document.getElementById('weekNum').value;
+    const date = document.getElementById('weekDate').value;
+    if (!num || !date) {
+      document.getElementById('preview').textContent = 'Fill in week number and date above';
+      return;
+    }
+    const d = new Date(date + 'T00:00:00');
+    const formatted = d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+    document.getElementById('preview').textContent = `Week ${num} - ${formatted}`;
+  }
+
+  function formatDate(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day   = String(d.getDate()).padStart(2, '0');
+    const year  = d.getFullYear();
+    return `${month}/${day}/${year}`;
+  }
+
+  function addLog(msg, type = '') {
+    const log = document.getElementById('log');
+    const item = document.createElement('div');
+    item.className = `log-item ${type}`;
+    item.textContent = msg;
+    log.appendChild(item);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function clearLog() { document.getElementById('log').innerHTML = ''; }
+
+  async function generate() {
+    const weekNum  = document.getElementById('weekNum').value.trim();
+    const weekDate = document.getElementById('weekDate').value.trim();
+
+    if (!weekNum || !weekDate) {
+      addLog('⚠ Please fill in week number and date', 'error');
+      return;
+    }
+
+    const weekLabel = `Week ${weekNum} - ${formatDate(weekDate)}`;
+    const btn = document.getElementById('generateBtn');
+    btn.disabled = true;
+    btn.textContent = 'Working…';
+    clearLog();
+
+    try {
+      // Step 1: Add week to Weekly_Check_Ins
+      addLog(`Creating week: ${weekLabel}`, 'info');
+      const weekResult = await grist.docApi.applyUserActions([
+        ['AddRecord', 'Weekly_Check_Ins', null, { Week: weekLabel }]
+      ]);
+      // Handle different possible result structures
+      const weekId = weekResult.rowIds?.[0] 
+        || weekResult.retValues?.[0] 
+        || (Array.isArray(weekResult) ? weekResult[0] : null)
+        || weekResult;
+      addLog(`Result structure: ${JSON.stringify(weekResult)}`, 'info');
+      addLog(`✓ Week created (id: ${weekId})`, 'success');
+
+      // Step 2: Get Coverage records
+      addLog('Fetching Coverage records…', 'info');
+      const covRecords = await grist.docApi.fetchTable('Coverage');
+      addLog(`Found ${covRecords.id.length} coverage records`, 'info');
+
+      // Use the selected week start date for filtering
+      const weekStartDate = new Date(weekDate + 'T00:00:00');
+      const weekEndDate = new Date(weekStartDate);
+      weekEndDate.setDate(weekStartDate.getDate() + 6); // Saturday
+
+      // Step 3: Filter active and create Week_List rows
+      let created = 0;
+      const actions = [];
+
+      // Debug: log first few coverage type values
+      addLog(`Sample Coverage_Type values: ${JSON.stringify(covRecords.Coverage_Type.slice(0,5))}`, 'info');
+
+      for (let i = 0; i < covRecords.id.length; i++) {
+        const startDate = covRecords.Start_Date[i];
+        const endDate = covRecords.End_Date[i];
+        const covType = covRecords.Coverage_Type[i];
+
+        let isActive = false;
+        if (covType === 'Regular') {
+          // Regular rows: always active regardless of start date
+          isActive = true;
+        } else {
+          // Temporary rows: start date must be within the week range
+          const start = startDate ? new Date(startDate * 1000) : null;
+          const end = endDate ? new Date(endDate * 1000) : null;
+          isActive = start && end &&
+            start <= weekEndDate &&
+            end >= weekStartDate;
+        }
+
+        if (isActive) {
+          actions.push(['AddRecord', 'Week_List', null, {
+            Week: weekId,
+            Practitioner_Name: covRecords.Practitioner_Name[i],
+            Facility_Name: covRecords.id[i],
+            Coverage_Type: ['L', covType === 'Primary' ? 'Primary' : 'Backup']
+          }]);
+          created++;
+        }
+      }
+
+      if (actions.length === 0) {
+        addLog('No active coverage records found', 'error');
+        return;
+      }
+
+      addLog(`Creating ${created} Week_List rows…`, 'info');
+
+      // Batch in groups of 50
+      for (let i = 0; i < actions.length; i += 50) {
+        const batch = actions.slice(i, i + 50);
+        await grist.docApi.applyUserActions(batch);
+        addLog(`✓ Created ${Math.min(i + 50, actions.length)}/${actions.length} rows`, 'success');
+      }
+
+      addLog(`✅ Done! ${created} rows added for ${weekLabel}`, 'success');
+
+    } catch(e) {
+      addLog(`Error: ${e.message || JSON.stringify(e)}`, 'error');
+      console.error(e);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Generate Week Rows';
+    }
+  }
+</script>
+</body>
+</html>
