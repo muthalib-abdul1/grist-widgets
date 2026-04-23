@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Week Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: #f1f0ed;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.container {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e0deda;
+  padding: 28px;
+  width: 100%;
+  max-width: 480px;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111;
+  margin-bottom: 4px;
+}
+
+.subtitle {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 24px;
+  font-family: 'DM Mono', monospace;
+}
+
+.field {
+  margin-bottom: 16px;
+}
+
+.field label {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #888;
+  margin-bottom: 6px;
+  font-family: 'DM Mono', monospace;
+}
+
+.field input, .field select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #e0deda;
+  border-radius: 7px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: #111;
+  background: #f8f7f5;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.field input:focus, .field select:focus {
+  border-color: #2d6a4f;
+  background: #fff;
+}
+
+.preview {
+  background: #f8f7f5;
+  border: 1px solid #e0deda;
+  border-radius: 7px;
+  padding: 10px 12px;
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  color: #2d6a4f;
+  margin-bottom: 20px;
+  min-height: 32px;
+}
+
+.btn {
+  width: 100%;
+  padding: 11px;
+  background: #1a1916;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.btn:hover { background: #2d6a4f; }
+.btn:active { transform: scale(0.98); }
+.btn:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+
+.log {
+  margin-top: 16px;
+  max-height: 180px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.log-item {
+  font-size: 11px;
+  font-family: 'DM Mono', monospace;
+  padding: 5px 8px;
+  border-radius: 5px;
+  background: #f8f7f5;
+  color: #555;
+}
+
+.log-item.success { background: #d4edda; color: #1a7a40; }
+.log-item.error   { background: #fde8d0; color: #b35a0a; }
+.log-item.info    { background: #e8f0fe; color: #1a56db; }
+
+.divider {
+  border: none;
+  border-top: 1px solid #f0eeea;
+  margin: 20px 0;
+}
+
+.config-section {
+  margin-bottom: 20px;
+}
+
+.config-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #aaa;
+  font-family: 'DM Mono', monospace;
+  margin-bottom: 12px;
+}
+
+.api-note {
+  font-size: 11px;
+  color: #aaa;
+  margin-top: 8px;
+  line-height: 1.5;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="title">📅 Week Generator</div>
+  <div class="subtitle">Auto-populate Week_List from Coverage</div>
+
+  <div class="config-section">
+    <div class="config-title">Configuration</div>
+
+    <div class="field">
+      <label>Grist API Key</label>
+      <input type="password" id="apiKey" placeholder="Paste your API key here" />
+      <div class="api-note">Profile → API Key in Grist. Stored in browser only.</div>
+    </div>
+
+    <div class="field">
+      <label>Document ID</label>
+      <input type="text" id="docId" placeholder="From your Grist URL" />
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <div class="config-title">Generate New Week</div>
+
+  <div class="field">
+    <label>Week Number</label>
+    <input type="number" id="weekNum" placeholder="e.g. 17" min="1" oninput="updatePreview()" />
+  </div>
+
+  <div class="field">
+    <label>Week Start Date (Sunday)</label>
+    <input type="date" id="weekDate" oninput="updatePreview()" />
+  </div>
+
+  <div class="field">
+    <label>Week Label Preview</label>
+    <div class="preview" id="preview">Fill in week number and date above</div>
+  </div>
+
+  <button class="btn" id="generateBtn" onclick="generate()">Generate Week Rows</button>
+
+  <div class="log" id="log"></div>
+</div>
+
+<script>
+  // ── Auto-load saved config ──
+  window.onload = () => {
+    const savedKey = localStorage.getItem('grist_api_key');
+    const savedDoc = localStorage.getItem('grist_doc_id');
+    if (savedKey) document.getElementById('apiKey').value = savedKey;
+    if (savedDoc) document.getElementById('docId').value = savedDoc;
+
+    // Auto-detect next Sunday
+    const today = new Date();
+    const day = today.getDay();
+    const daysUntilSunday = day === 0 ? 7 : 7 - day;
+    const nextSunday = new Date(today);
+    nextSunday.setDate(today.getDate() + daysUntilSunday);
+    document.getElementById('weekDate').value = nextSunday.toISOString().split('T')[0];
+    updatePreview();
+  };
+
+  function updatePreview() {
+    const num = document.getElementById('weekNum').value;
+    const date = document.getElementById('weekDate').value;
+    if (!num || !date) {
+      document.getElementById('preview').textContent = 'Fill in week number and date above';
+      return;
+    }
+    const d = new Date(date + 'T00:00:00');
+    const formatted = d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+    document.getElementById('preview').textContent = `Week ${num} - ${formatted}`;
+  }
+
+  function formatDate(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day   = String(d.getDate()).padStart(2, '0');
+    const year  = d.getFullYear();
+    return `${month}/${day}/${year}`;
+  }
+
+  function addLog(msg, type = '') {
+    const log = document.getElementById('log');
+    const item = document.createElement('div');
+    item.className = `log-item ${type}`;
+    item.textContent = msg;
+    log.appendChild(item);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function clearLog() {
+    document.getElementById('log').innerHTML = '';
+  }
+
+  async function generate() {
+    const apiKey = document.getElementById('apiKey').value.trim();
+    const docId  = document.getElementById('docId').value.trim();
+    const weekNum = document.getElementById('weekNum').value.trim();
+    const weekDate = document.getElementById('weekDate').value.trim();
+
+    if (!apiKey || !docId || !weekNum || !weekDate) {
+      addLog('⚠ Please fill in all fields', 'error');
+      return;
+    }
+
+    // Save config
+    localStorage.setItem('grist_api_key', apiKey);
+    localStorage.setItem('grist_doc_id', docId);
+
+    const weekLabel = `Week ${weekNum} - ${formatDate(weekDate)}`;
+    const btn = document.getElementById('generateBtn');
+    btn.disabled = true;
+    btn.textContent = 'Working…';
+    clearLog();
+
+    const headers = {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    };
+
+    const base = `https://api.getgrist.com/api/docs/${docId}`;
+
+    try {
+      // ── Step 1: Add week to Weekly_Check_Ins ──
+      addLog(`Creating week: ${weekLabel}`, 'info');
+
+      const weekResp = await fetch(`${base}/tables/Weekly_Check_Ins/records`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ records: [{ fields: { Week: weekLabel } }] })
+      });
+
+      if (!weekResp.ok) {
+        const err = await weekResp.text();
+        addLog(`Error creating week: ${err}`, 'error');
+        return;
+      }
+
+      const weekData = await weekResp.json();
+      const weekId = weekData.records[0].id;
+      addLog(`✓ Week created (id: ${weekId})`, 'success');
+
+      // ── Step 2: Get active Coverage rows ──
+      addLog('Fetching active Coverage records…', 'info');
+
+      const covResp = await fetch(`${base}/tables/Coverage/records`, { headers });
+      if (!covResp.ok) {
+        addLog('Error fetching Coverage', 'error');
+        return;
+      }
+
+      const covData = await covResp.json();
+      const today = new Date();
+
+      const activeRows = covData.records.filter(r => {
+        const endDate = r.fields.End_Date;
+        return !endDate || new Date(endDate * 1000) >= today;
+      });
+
+      addLog(`Found ${activeRows.length} active coverage records`, 'info');
+
+      if (activeRows.length === 0) {
+        addLog('No active coverage rows found — nothing to create', 'error');
+        return;
+      }
+
+      // ── Step 3: Create Week_List rows ──
+      addLog('Creating Week_List rows…', 'info');
+
+      const records = activeRows.map(r => ({
+        fields: {
+          Week: weekId,
+          Practitioner_Name: r.fields.Practitioner_Name,
+          Facility_Name: r.fields.id || r.id,
+          Assign_Status: r.fields.Coverage_Type === 'Regular'
+            ? ['Assigned / Primary']
+            : ['Assigned / Backup']
+        }
+      }));
+
+      // Batch in groups of 50
+      let created = 0;
+      for (let i = 0; i < records.length; i += 50) {
+        const batch = records.slice(i, i + 50);
+        const resp = await fetch(`${base}/tables/Week_List/records`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ records: batch })
+        });
+
+        if (!resp.ok) {
+          const err = await resp.text();
+          addLog(`Error in batch ${i}-${i+50}: ${err}`, 'error');
+        } else {
+          created += batch.length;
+          addLog(`✓ Created ${created}/${records.length} rows`, 'success');
+        }
+      }
+
+      addLog(`✅ Done! ${created} rows added to Week_List for ${weekLabel}`, 'success');
+
+    } catch(e) {
+      addLog(`Error: ${e.message}`, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Generate Week Rows';
+    }
+  }
+
+  // Grist ready
+  grist.ready({ requiredAccess: 'read table' });
+</script>
+</body>
+</html>
