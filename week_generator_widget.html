@@ -210,27 +210,20 @@ body {
       for (let i = 0; i < covRecords.id.length; i++) {
         const startDate = covRecords.Start_Date[i];
         const endDate = covRecords.End_Date[i];
-        const covType = covRecords.Coverage_Type[i];
-
-        let isActive = false;
-        if (covType === 'Regular') {
-          // Regular rows: always active regardless of start date
-          isActive = true;
-        } else {
-          // Temporary rows: start date must be within the week range
-          const start = startDate ? new Date(startDate * 1000) : null;
-          const end = endDate ? new Date(endDate * 1000) : null;
-          isActive = start && end &&
-            start <= weekEndDate &&
-            end >= weekStartDate;
-        }
-
+      
+        const start = startDate ? new Date(startDate * 1000) : null;
+        const end = endDate ? new Date(endDate * 1000) : null;
+      
+        const isActive = start &&
+          start <= weekEndDate &&
+          (!end || end >= weekStartDate);
+      
         if (isActive) {
           actions.push(['AddRecord', 'Week_List', null, {
             Week: weekId,
             Practitioner_Name: covRecords.Practitioner_Name[i],
             Facility_Name: covRecords.id[i],
-            Coverage_Type: ['L', covType === 'Primary' ? 'Primary' : 'Backup']
+            Coverage_Type: ['L', covRecords.Coverage_Type[i]]
           }]);
           created++;
         }
