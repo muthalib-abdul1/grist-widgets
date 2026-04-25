@@ -219,8 +219,7 @@ tbody td:first-child {
     hRow.appendChild(weekTh);
     coordinators.forEach(cc => {
       const th = document.createElement('th');
-      // Use first name only in header to save space
-      th.textContent = cc.split(' ')[0];
+      th.textContent = cc;
       th.title = cc;
       hRow.appendChild(th);
     });
