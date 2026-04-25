@@ -22,7 +22,7 @@ body {
 }
 .btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .cc-btn {
-  padding: 8px 16px; border-radius: 8px;
+  padding: 6px 14px; border-radius: 8px;
   border: 1.5px solid #e0deda; background: #fff;
   font-family: 'DM Sans', sans-serif; font-size: 13px;
   font-weight: 500; color: #444; cursor: pointer;
@@ -34,10 +34,11 @@ body {
 .table-wrap {
   overflow-x: auto; border-radius: 10px;
   border: 1px solid #e0deda; background: #fff;
+  display: inline-block; min-width: 100%;
 }
-table { border-collapse: collapse; min-width: 100%; font-size: 12px; }
+table { border-collapse: collapse; font-size: 12px; width: auto; }
 thead th {
-  background: #1a1916; color: #fff; padding: 9px 14px;
+  background: #1a1916; color: #fff; padding: 8px 10px;
   font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500;
   white-space: nowrap; text-align: center; letter-spacing: 0.04em;
   position: sticky; top: 0; z-index: 2;
@@ -45,25 +46,26 @@ thead th {
 thead th:first-child {
   text-align: left; background: #111;
   position: sticky; left: 0; z-index: 3;
-  min-width: 180px;
 }
 tbody tr { border-bottom: 1px solid #f0eeea; }
 tbody tr:last-child { border-bottom: none; }
 tbody td {
-  padding: 8px 14px; text-align: center;
+  padding: 7px 10px; text-align: center;
   vertical-align: middle; color: #444;
   font-family: 'DM Mono', monospace; font-size: 11px;
+  white-space: nowrap;
 }
 tbody td:first-child {
   text-align: left; font-weight: 500; color: #111;
   white-space: nowrap; background: #fafaf8;
   position: sticky; left: 0;
   border-right: 1px solid #e0deda; font-size: 11px;
+  padding-right: 16px;
 }
 .cell-val {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 36px; height: 22px; border-radius: 4px;
-  font-size: 11px; font-weight: 500;
+  min-width: 30px; height: 20px; border-radius: 4px;
+  font-size: 11px; font-weight: 500; padding: 0 6px;
 }
 .cell-val.zero { color: #ccc; }
 .cell-val.low  { background: #e8f5e9; color: #2d6a4f; }
@@ -126,13 +128,11 @@ tbody td:first-child {
   function renderButtons() {
     const row = document.getElementById('btnRow');
     row.innerHTML = '';
-
     const allBtn = document.createElement('button');
     allBtn.className = 'cc-btn' + (activeCC === null ? ' active' : '');
     allBtn.textContent = 'All';
     allBtn.onclick = () => selectCC(null, allBtn, null);
     row.appendChild(allBtn);
-
     summaryRows.forEach(r => {
       const cc = r.Care_Coordinator_Value || r.Care_Coordinator;
       if (!cc) return;
@@ -157,7 +157,6 @@ tbody td:first-child {
       return;
     }
 
-    // Build week ID → full label map from Weekly_Check_Ins
     const weekLabels = {};
     if (wci && wci.id) {
       for (let i = 0; i < wci.id.length; i++) {
@@ -166,8 +165,7 @@ tbody td:first-child {
       }
     }
 
-    // Collect unique weeks (as IDs) and care coordinators
-    const weeksMap = new Map(); // weekId → full label
+    const weeksMap = new Map();
     const ccSet = new Set();
 
     for (let i = 0; i < wl.id.length; i++) {
@@ -180,7 +178,6 @@ tbody td:first-child {
       if (cc) ccSet.add(cc);
     }
 
-    // Sort weeks by ID (chronological), coordinators alphabetically
     const weeks = Array.from(weeksMap.entries()).sort((a, b) => a[0] - b[0]);
     const coordinators = Array.from(ccSet).sort();
 
@@ -189,7 +186,6 @@ tbody td:first-child {
       return;
     }
 
-    // Build matrix — weeks as rows, CC as columns
     const matrix = {};
     weeks.forEach(([wId]) => {
       matrix[wId] = {};
@@ -205,49 +201,42 @@ tbody td:first-child {
       }
     }
 
-    // Row totals (per week)
     const rowTotals = {};
     weeks.forEach(([wId]) => {
       rowTotals[wId] = coordinators.reduce((s, cc) => s + (matrix[wId][cc] || 0), 0);
     });
-
-    // Column totals (per CC)
     const colTotals = {};
     coordinators.forEach(cc => {
       colTotals[cc] = weeks.reduce((s, [wId]) => s + (matrix[wId][cc] || 0), 0);
     });
 
-    // Render header — CC as columns
+    // Header
     const thead = document.getElementById('thead');
     thead.innerHTML = '';
     const hRow = document.createElement('tr');
     const weekTh = document.createElement('th');
     weekTh.textContent = 'WEEK';
     hRow.appendChild(weekTh);
-
     coordinators.forEach(cc => {
       const th = document.createElement('th');
-      th.textContent = cc;
+      // Use first name only in header to save space
+      th.textContent = cc.split(' ')[0];
       th.title = cc;
       hRow.appendChild(th);
     });
-
     const totalTh = document.createElement('th');
     totalTh.textContent = 'TOTAL';
     hRow.appendChild(totalTh);
     thead.appendChild(hRow);
 
-    // Render body — weeks as rows
+    // Body
     const tbody = document.getElementById('tbody');
     tbody.innerHTML = '';
-
     weeks.forEach(([wId, label]) => {
       const tr = document.createElement('tr');
-
       const weekTd = document.createElement('td');
-      weekTd.textContent = label; // Full week label as-is
+      weekTd.textContent = label;
       tr.appendChild(weekTd);
-
       coordinators.forEach(cc => {
         const count = matrix[wId][cc] || 0;
         const td = document.createElement('td');
@@ -257,7 +246,6 @@ tbody td:first-child {
         td.appendChild(span);
         tr.appendChild(td);
       });
-
       const rtd = document.createElement('td');
       const rs = document.createElement('span');
       rs.className = 'cell-val ' + getColor(rowTotals[wId]);
@@ -273,13 +261,11 @@ tbody td:first-child {
     const tlbl = document.createElement('td');
     tlbl.textContent = 'TOTAL';
     tRow.appendChild(tlbl);
-
     coordinators.forEach(cc => {
       const td = document.createElement('td');
       td.textContent = colTotals[cc] || 0;
       tRow.appendChild(td);
     });
-
     const grand = coordinators.reduce((s, cc) => s + (colTotals[cc] || 0), 0);
     const gtd = document.createElement('td');
     gtd.textContent = grand;
