@@ -14,8 +14,6 @@ body {
   min-height: 100vh;
   padding: 16px;
 }
-
-/* ── Buttons ── */
 .btn-section { margin-bottom: 16px; }
 .btn-label {
   font-size: 11px; font-weight: 500; text-transform: uppercase;
@@ -31,13 +29,8 @@ body {
   transition: all 0.15s;
 }
 .cc-btn:hover { border-color: #2d6a4f; color: #2d6a4f; background: #f0f7f4; }
-.cc-btn.active {
-  background: #1a1916; color: #fff;
-  border-color: #1a1916;
-}
+.cc-btn.active { background: #1a1916; color: #fff; border-color: #1a1916; }
 .cc-btn.active:hover { background: #2d6a4f; border-color: #2d6a4f; }
-
-/* ── Table ── */
 .table-wrap {
   overflow-x: auto; border-radius: 10px;
   border: 1px solid #e0deda; background: #fff;
@@ -88,7 +81,6 @@ tbody td:first-child {
 </head>
 <body>
 
-<!-- Buttons -->
 <div class="btn-section">
   <div class="btn-label">Filter by Care Coordinator</div>
   <div class="btn-row" id="btnRow">
@@ -96,7 +88,6 @@ tbody td:first-child {
   </div>
 </div>
 
-<!-- Counts table -->
 <div class="table-wrap">
   <div class="loading" id="loading">Loading data…</div>
   <table id="pivotTable" style="display:none">
@@ -115,8 +106,12 @@ tbody td:first-child {
     summaryRows = records;
     renderButtons();
     try {
-      const wl = await grist.docApi.fetchTable('Week_List');
-      buildTable(wl);
+      // Fetch both Week_List and Weekly_Check_Ins to resolve week labels
+      const [wl, wci] = await Promise.all([
+        grist.docApi.fetchTable('Week_List'),
+        grist.docApi.fetchTable('Weekly_Check_Ins')
+      ]);
+      buildTable(wl, wci);
     } catch(e) {
       document.getElementById('loading').textContent = 'Error: ' + e.message;
     }
@@ -132,11 +127,10 @@ tbody td:first-child {
     const row = document.getElementById('btnRow');
     row.innerHTML = '';
 
-    // "All" button
     const allBtn = document.createElement('button');
     allBtn.className = 'cc-btn' + (activeCC === null ? ' active' : '');
     allBtn.textContent = 'All';
-    allBtn.onclick = () => selectCC(null, allBtn);
+    allBtn.onclick = () => selectCC(null, allBtn, null);
     row.appendChild(allBtn);
 
     summaryRows.forEach(r => {
@@ -146,7 +140,6 @@ tbody td:first-child {
       btn.className = 'cc-btn' + (activeCC === cc ? ' active' : '');
       btn.textContent = cc;
       btn.dataset.cc = cc;
-      btn.dataset.rowId = r.id;
       btn.onclick = () => selectCC(cc, btn, r.id);
       row.appendChild(btn);
     });
@@ -154,62 +147,74 @@ tbody td:first-child {
 
   function selectCC(cc, btn, rowId) {
     activeCC = cc;
-
-    // Update button styles
     document.querySelectorAll('.cc-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-
-    // Move cursor on summary table → triggers linked Backlogs List + Card
     if (rowId) {
-      grist.setCursorPos({ rowId: rowId });
+      grist.setCursorPos({ rowId });
     }
   }
 
-  function buildTable(wl) {
+  function buildTable(wl, wci) {
     if (!wl || !wl.id || wl.id.length === 0) {
       document.getElementById('loading').textContent = 'No data found.';
       return;
     }
 
-    const weeksSet = new Set();
-    const ccSet = new Set();
-
-    for (let i = 0; i < wl.id.length; i++) {
-      const week = getVal(wl, 'Week', i);
-      const cc   = getVal(wl, 'Care_Coordinator', i);
-      if (week) weeksSet.add(week);
-      if (cc)   ccSet.add(cc);
-    }
-
-    const weeks = Array.from(weeksSet).sort();
-    const coordinators = Array.from(ccSet).sort();
-
-    // Build matrix (incomplete only)
-    const matrix = {};
-    coordinators.forEach(cc => {
-      matrix[cc] = {};
-      weeks.forEach(w => { matrix[cc][w] = 0; });
-    });
-
-    for (let i = 0; i < wl.id.length; i++) {
-      const week = getVal(wl, 'Week', i);
-      const cc   = getVal(wl, 'Care_Coordinator', i);
-      const incomplete = !wl.Ready_to_Audit[i];
-      if (week && cc && incomplete && matrix[cc] && matrix[cc][week] !== undefined) {
-        matrix[cc][week]++;
+    // Build week ID → label map from Weekly_Check_Ins
+    const weekLabels = {};
+    if (wci && wci.id) {
+      for (let i = 0; i < wci.id.length; i++) {
+        const label = wci.Week ? wci.Week[i] : null;
+        if (label) weekLabels[wci.id[i]] = String(label);
       }
     }
 
-    // Row totals
-    const rowTotals = {};
+    const weeksMap = new Map(); // weekId → label
+    const ccSet = new Set();
+
+    for (let i = 0; i < wl.id.length; i++) {
+      const weekId = wl.Week ? wl.Week[i] : null;
+      const cc = getVal(wl, 'Care_Coordinator', i);
+      if (weekId) {
+        const label = weekLabels[weekId] || ('Week ' + weekId);
+        weeksMap.set(weekId, label);
+      }
+      if (cc) ccSet.add(cc);
+    }
+
+    // Sort weeks by ID (chronological)
+    const weeks = Array.from(weeksMap.entries()).sort((a, b) => a[0] - b[0]);
+    const coordinators = Array.from(ccSet).sort();
+
+    if (weeks.length === 0 || coordinators.length === 0) {
+      document.getElementById('loading').textContent = 'Could not build table.';
+      return;
+    }
+
+    // Build matrix using weekId as key
+    const matrix = {};
     coordinators.forEach(cc => {
-      rowTotals[cc] = weeks.reduce((s, w) => s + (matrix[cc][w] || 0), 0);
+      matrix[cc] = {};
+      weeks.forEach(([wId]) => { matrix[cc][wId] = 0; });
     });
 
-    // Col totals
+    for (let i = 0; i < wl.id.length; i++) {
+      const weekId = wl.Week ? wl.Week[i] : null;
+      const cc = getVal(wl, 'Care_Coordinator', i);
+      const incomplete = !wl.Ready_to_Audit[i];
+      if (weekId && cc && incomplete && matrix[cc] && matrix[cc][weekId] !== undefined) {
+        matrix[cc][weekId]++;
+      }
+    }
+
+    // Totals
+    const rowTotals = {};
+    coordinators.forEach(cc => {
+      rowTotals[cc] = weeks.reduce((s, [wId]) => s + (matrix[cc][wId] || 0), 0);
+    });
     const colTotals = {};
-    weeks.forEach(w => {
-      colTotals[w] = coordinators.reduce((s, cc) => s + (matrix[cc][w] || 0), 0);
+    weeks.forEach(([wId]) => {
+      colTotals[wId] = coordinators.reduce((s, cc) => s + (matrix[cc][wId] || 0), 0);
     });
 
     // Header
@@ -219,11 +224,12 @@ tbody td:first-child {
     const ccTh = document.createElement('th');
     ccTh.textContent = 'CARE COORDINATOR';
     hRow.appendChild(ccTh);
-    weeks.forEach(w => {
+    weeks.forEach(([wId, label]) => {
       const th = document.createElement('th');
-      const match = w.match(/Week\s+(\d+)/i);
-      th.textContent = match ? 'Wk ' + match[1] : w;
-      th.title = w;
+      // Shorten label: "Week 15 - 04/05/2026" → "Wk 15"
+      const match = String(label).match(/Week\s+(\d+)/i);
+      th.textContent = match ? 'Wk ' + match[1] : label;
+      th.title = label;
       hRow.appendChild(th);
     });
     const totalTh = document.createElement('th');
@@ -239,8 +245,8 @@ tbody td:first-child {
       const ccTd = document.createElement('td');
       ccTd.textContent = cc;
       tr.appendChild(ccTd);
-      weeks.forEach(w => {
-        const count = matrix[cc][w] || 0;
+      weeks.forEach(([wId]) => {
+        const count = matrix[cc][wId] || 0;
         const td = document.createElement('td');
         const span = document.createElement('span');
         span.className = 'cell-val ' + getColor(count);
@@ -263,9 +269,9 @@ tbody td:first-child {
     const tlbl = document.createElement('td');
     tlbl.textContent = 'TOTAL';
     tRow.appendChild(tlbl);
-    weeks.forEach(w => {
+    weeks.forEach(([wId]) => {
       const td = document.createElement('td');
-      td.textContent = colTotals[w] || 0;
+      td.textContent = colTotals[wId] || 0;
       tRow.appendChild(td);
     });
     const grand = coordinators.reduce((s, cc) => s + (rowTotals[cc] || 0), 0);
