@@ -154,25 +154,24 @@ tbody td:first-child {
       return;
     }
 
-    // Get week labels directly from Week_Value (the display value of the Week reference column)
-    const weeksMap = new Map(); // weekId → label
+    // Week column is plain Text - use value directly as key and label
+    const weeksMap = new Map();
     const ccSet = new Set();
 
     for (let i = 0; i < wl.id.length; i++) {
-      const weekId = wl.Week ? wl.Week[i] : null;
-      const weekLabel = wl.Week_Value ? wl.Week_Value[i] : null;
+      const weekLabel = wl.Week ? String(wl.Week[i]) : null;
       const cc = getVal(wl, 'Care_Coordinator', i);
-      if (weekId && weekLabel) {
-        weeksMap.set(weekId, String(weekLabel));
-      }
+      if (weekLabel) weeksMap.set(weekLabel, weekLabel);
       if (cc) ccSet.add(cc);
     }
 
-    const weeks = Array.from(weeksMap.entries()).sort((a, b) => a[0] - b[0]);
+    const weeks = Array.from(weeksMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
     const coordinators = Array.from(ccSet).sort();
 
     if (weeks.length === 0 || coordinators.length === 0) {
-      document.getElementById('loading').textContent = 'Could not build table.';
+      const sample = wl.Week ? JSON.stringify(wl.Week.slice(0,3)) : 'no Week col';
+      const ccSample = wl.Care_Coordinator ? JSON.stringify(wl.Care_Coordinator.slice(0,3)) : 'no CC col';
+      document.getElementById('loading').textContent = 'Debug - Week samples: ' + sample + ' | CC samples: ' + ccSample;
       return;
     }
 
@@ -184,11 +183,11 @@ tbody td:first-child {
     });
 
     for (let i = 0; i < wl.id.length; i++) {
-      const weekId = wl.Week ? wl.Week[i] : null;
+      const weekLabel = wl.Week ? String(wl.Week[i]) : null;
       const cc = getVal(wl, 'Care_Coordinator', i);
       const incomplete = !wl.Ready_to_Audit[i];
-      if (weekId && cc && incomplete && matrix[weekId] && matrix[weekId][cc] !== undefined) {
-        matrix[weekId][cc]++;
+      if (weekLabel && cc && incomplete && matrix[weekLabel] && matrix[weekLabel][cc] !== undefined) {
+        matrix[weekLabel][cc]++;
       }
     }
 
