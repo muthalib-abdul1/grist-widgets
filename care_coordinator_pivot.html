@@ -71,6 +71,14 @@ tbody td:first-child {
 .cell-val.low  { background: #e8f5e9; color: #2d6a4f; }
 .cell-val.mid  { background: #fff3e0; color: #e65100; }
 .cell-val.high { background: #fde8d0; color: #b35a0a; }
+.cell-wrap { position: relative; display: inline-block; }
+.cell-complete {
+  position: absolute; top: -6px; right: -8px;
+  font-size: 9px; font-weight: 600; color: #2d6a4f;
+  background: #e8f5e9; border-radius: 3px;
+  padding: 0 3px; line-height: 14px;
+  font-family: 'DM Mono', monospace;
+}
 .total-row td {
   background: #f8f7f5; font-weight: 600;
   border-top: 2px solid #e0deda; color: #111;
@@ -85,7 +93,7 @@ tbody td:first-child {
 <body>
 
 <div class="btn-section">
-  <div class="btn-label">Filter by Care Coordinator</div>
+  <div class="btn-label">Filter by Care Coordinator &amp; Week</div>
   <div class="btn-row" id="btnRow">
     <div class="loading" style="padding:8px">Loading…</div>
   </div>
@@ -169,25 +177,26 @@ tbody td:first-child {
     const coordinators = Array.from(ccSet).sort();
 
     if (weeks.length === 0 || coordinators.length === 0) {
-      const sample = wl.Week ? JSON.stringify(wl.Week.slice(0,3)) : 'no Week col';
-      const ccSample = wl.Care_Coordinator ? JSON.stringify(wl.Care_Coordinator.slice(0,3)) : 'no CC col';
-      document.getElementById('loading').textContent = 'Debug - Week samples: ' + sample + ' | CC samples: ' + ccSample;
+      document.getElementById('loading').textContent = 'Could not build table.';
       return;
     }
 
-    // Build matrix
+    // Build matrix for incomplete and complete
     const matrix = {};
+    const matrixComplete = {};
     weeks.forEach(([wId]) => {
       matrix[wId] = {};
-      coordinators.forEach(cc => { matrix[wId][cc] = 0; });
+      matrixComplete[wId] = {};
+      coordinators.forEach(cc => { matrix[wId][cc] = 0; matrixComplete[wId][cc] = 0; });
     });
 
     for (let i = 0; i < wl.id.length; i++) {
       const weekLabel = wl.Week ? String(wl.Week[i]) : null;
       const cc = getVal(wl, 'Care_Coordinator', i);
       const incomplete = !wl.Ready_to_Audit[i];
-      if (weekLabel && cc && incomplete && matrix[weekLabel] && matrix[weekLabel][cc] !== undefined) {
-        matrix[weekLabel][cc]++;
+      if (weekLabel && cc && matrix[weekLabel] && matrix[weekLabel][cc] !== undefined) {
+        if (incomplete) matrix[weekLabel][cc]++;
+        else matrixComplete[weekLabel][cc]++;
       }
     }
 
@@ -228,11 +237,22 @@ tbody td:first-child {
       tr.appendChild(weekTd);
       coordinators.forEach(cc => {
         const count = matrix[wId][cc] || 0;
+        const complete = matrixComplete[wId][cc] || 0;
         const td = document.createElement('td');
+        const wrap = document.createElement('span');
+        wrap.className = 'cell-wrap';
         const span = document.createElement('span');
         span.className = 'cell-val ' + getColor(count);
         span.textContent = count === 0 ? '–' : count;
-        td.appendChild(span);
+        wrap.appendChild(span);
+        if (complete > 0) {
+          const sup = document.createElement('span');
+          sup.className = 'cell-complete';
+          sup.textContent = complete;
+          sup.title = complete + ' completed';
+          wrap.appendChild(sup);
+        }
+        td.appendChild(wrap);
         tr.appendChild(td);
       });
       const rtd = document.createElement('td');
