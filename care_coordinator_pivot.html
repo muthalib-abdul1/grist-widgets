@@ -191,7 +191,7 @@ tbody td:first-child {
     });
 
     for (let i = 0; i < wl.id.length; i++) {
-      const weekLabel = wl.Week ? String(wl.Week[i]) : null;
+      const weekLabel = getVal(wl, 'Week', i) ? String(getVal(wl, 'Week', i)) : null;
       const cc = getVal(wl, 'Care_Coordinator', i);
       const incomplete = !wl.Ready_to_Audit[i];
       if (weekLabel && cc && matrix[weekLabel] && matrix[weekLabel][cc] !== undefined) {
