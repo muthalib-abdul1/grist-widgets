@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Practitioners Assigned</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: #f1f0ed;
+  min-height: 100vh;
+  padding: 16px;
+}
+.facility-name {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.07em; color: #aaa;
+  font-family: 'DM Mono', monospace; margin-bottom: 14px;
+}
+.practitioner-card {
+  background: #fff;
+  border: 1px solid #e0deda;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: box-shadow 0.15s;
+}
+.practitioner-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.practitioner-card.primary { border-left: 4px solid #1a1916; }
+.practitioner-card.backup { border-left: 4px solid #e0deda; }
+.practitioner-card.empty-slot { border-left: 4px solid #f0eeea; background: #fafaf8; opacity: 0.6; }
+.role-badge {
+  font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.07em;
+  font-family: 'DM Mono', monospace;
+  padding: 3px 8px; border-radius: 4px;
+  white-space: nowrap; flex-shrink: 0;
+}
+.role-badge.primary { background: #1a1916; color: #fff; }
+.role-badge.backup { background: #f1f0ed; color: #888; }
+.role-badge.empty { background: #f1f0ed; color: #ccc; }
+.practitioner-name { font-size: 13px; font-weight: 500; color: #111; }
+.practitioner-name.unassigned { color: #ccc; font-style: italic; font-weight: 400; }
+.empty-state {
+  padding: 32px; text-align: center; color: #aaa;
+  font-family: 'DM Mono', monospace; font-size: 12px;
+  background: #fff; border-radius: 10px;
+  border: 1px solid #e0deda;
+}
+</style>
+</head>
+<body>
+<div class="facility-name" id="facilityName">PRACTITIONERS ASSIGNED</div>
+<div id="list"><div class="empty-state">Select a facility to view practitioners</div></div>
+<script>
+  grist.ready({ requiredAccess: 'read table' });
+
+  grist.onRecord(function(record) {
+    var facilityName = record.Facility_Name || '';
+    document.getElementById('facilityName').textContent =
+      facilityName ? facilityName.toUpperCase() : 'PRACTITIONERS ASSIGNED';
+
+    var slots = [
+      { role: 'Primary',    value: record.Primary_Practitioner, isPrimary: true },
+      { role: '1st Backup', value: record.Backup_1, isPrimary: false },
+      { role: '2nd Backup', value: record.Backup_2, isPrimary: false },
+      { role: '3rd Backup', value: record.Backup_3, isPrimary: false },
+      { role: '4th Backup', value: record.Backup_4, isPrimary: false },
+    ];
+
+    var list = document.getElementById('list');
+    list.innerHTML = '';
+
+    slots.forEach(function(slot) {
+      var hasValue = slot.value && String(slot.value).trim() !== '';
+      var card = document.createElement('div');
+      card.className = 'practitioner-card ' + (hasValue ? (slot.isPrimary ? 'primary' : 'backup') : 'empty-slot');
+
+      var badge = document.createElement('span');
+      badge.className = 'role-badge ' + (hasValue ? (slot.isPrimary ? 'primary' : 'backup') : 'empty');
+      badge.textContent = slot.role;
+
+      var nameEl = document.createElement('span');
+      nameEl.className = 'practitioner-name' + (hasValue ? '' : ' unassigned');
+      nameEl.textContent = hasValue ? String(slot.value) : 'Not assigned';
+
+      card.appendChild(badge);
+      card.appendChild(nameEl);
+      list.appendChild(card);
+    });
+  });
+</script>
+</body>
+</html>
