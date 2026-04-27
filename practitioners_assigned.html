@@ -67,10 +67,10 @@ body {
 
     var slots = [
       { role: 'Primary',    value: record.Primary_Practitioner, isPrimary: true },
-      { role: '1st Backup', value: record.c1st_Backup, isPrimary: false },
-      { role: '2nd Backup', value: record.c2nd_Backup, isPrimary: false },
-      { role: '3rd Backup', value: record.c3rd_Backup, isPrimary: false },
-      { role: '4th Backup', value: record.c4th_Backup, isPrimary: false },
+      { role: '1st Backup', value: record['1st_Backup'], isPrimary: false },
+      { role: '2nd Backup', value: record['2nd_Backup'], isPrimary: false },
+      { role: '3rd Backup', value: record['3rd_Backup'], isPrimary: false },
+      { role: '4th Backup', value: record['4th_Backup'], isPrimary: false },
     ];
 
     var list = document.getElementById('list');
