@@ -167,7 +167,7 @@ tbody td:first-child {
     const ccSet = new Set();
 
     for (let i = 0; i < wl.id.length; i++) {
-      const weekLabel = wl.Week ? String(wl.Week[i]) : null;
+      const weekLabel = getVal(wl, 'Week', i) ? String(getVal(wl, 'Week', i)) : null;
       const cc = getVal(wl, 'Care_Coordinator', i);
       if (weekLabel) weeksMap.set(weekLabel, weekLabel);
       if (cc) ccSet.add(cc);
