@@ -118,7 +118,7 @@ tbody td:first-child {
     renderButtons();
     try {
       const wl = await grist.docApi.fetchTable('Week_List');
-      buildTable(wl);
+      await buildTable(wl);
     } catch(e) {
       document.getElementById('loading').textContent = 'Error: ' + e.message;
     }
@@ -156,18 +156,30 @@ tbody td:first-child {
     if (rowId) grist.setCursorPos({ rowId });
   }
 
-  function buildTable(wl) {
+  async function buildTable(wl) {
     if (!wl || !wl.id || wl.id.length === 0) {
       document.getElementById('loading').textContent = 'No data found.';
       return;
     }
 
-    // Week column is plain Text - use value directly as key and label
+    // Fetch Weeks_Table to map row ID -> week label
+    let weekIdToLabel = {};
+    try {
+      const weeksTable = await grist.docApi.fetchTable('Weeks_Table');
+      for (let i = 0; i < weeksTable.id.length; i++) {
+        weekIdToLabel[weeksTable.id[i]] = weeksTable.Week[i];
+      }
+    } catch(e) {
+      document.getElementById('loading').textContent = 'Error loading Weeks_Table: ' + e.message;
+      return;
+    }
+
     const weeksMap = new Map();
     const ccSet = new Set();
 
     for (let i = 0; i < wl.id.length; i++) {
-      const weekLabel = getVal(wl, 'Week', i) ? String(getVal(wl, 'Week', i)) : null;
+      const rawWeek = wl.Week ? wl.Week[i] : null;
+      const weekLabel = rawWeek ? (weekIdToLabel[rawWeek] || String(rawWeek)) : null;
       const cc = getVal(wl, 'Care_Coordinator', i);
       if (weekLabel) weeksMap.set(weekLabel, weekLabel);
       if (cc) ccSet.add(cc);
@@ -181,7 +193,7 @@ tbody td:first-child {
       return;
     }
 
-    // Build matrix for incomplete and complete
+    // Build matrix for incomplete and complete counts
     const matrix = {};
     const matrixComplete = {};
     weeks.forEach(([wId]) => {
@@ -191,7 +203,8 @@ tbody td:first-child {
     });
 
     for (let i = 0; i < wl.id.length; i++) {
-      const weekLabel = getVal(wl, 'Week', i) ? String(getVal(wl, 'Week', i)) : null;
+      const rawWeek = wl.Week ? wl.Week[i] : null;
+      const weekLabel = rawWeek ? (weekIdToLabel[rawWeek] || String(rawWeek)) : null;
       const cc = getVal(wl, 'Care_Coordinator', i);
       const incomplete = !wl.Ready_to_Audit[i];
       if (weekLabel && cc && matrix[weekLabel] && matrix[weekLabel][cc] !== undefined) {
@@ -210,7 +223,7 @@ tbody td:first-child {
       colTotals[cc] = weeks.reduce((s, [wId]) => s + (matrix[wId][cc] || 0), 0);
     });
 
-    // Header
+    // Build header
     const thead = document.getElementById('thead');
     thead.innerHTML = '';
     const hRow = document.createElement('tr');
@@ -228,7 +241,7 @@ tbody td:first-child {
     hRow.appendChild(totalTh);
     thead.appendChild(hRow);
 
-    // Body
+    // Build body
     const tbody = document.getElementById('tbody');
     tbody.innerHTML = '';
     weeks.forEach(([wId, label]) => {
