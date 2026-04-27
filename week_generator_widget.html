@@ -180,7 +180,7 @@ body {
       // Step 1: Add week to Weekly_Check_Ins
       addLog(`Creating week: ${weekLabel}`, 'info');
       const weekResult = await grist.docApi.applyUserActions([
-        ['AddRecord', 'Weekly_Check_Ins', null, { Week: weekLabel }]
+        ['AddRecord', 'Weeks_Table', null, { Week: weekLabel }]
       ]);
       // Handle different possible result structures
       const weekId = weekResult.rowIds?.[0] 
@@ -192,7 +192,7 @@ body {
 
       // Step 2: Get Coverage records
       addLog('Fetching Coverage records…', 'info');
-      const covRecords = await grist.docApi.fetchTable('Coverage');
+      const covRecords = await grist.docApi.fetchTable('Weekly_Coverage_Schedule');
       addLog(`Found ${covRecords.id.length} coverage records`, 'info');
 
       // Use the selected week start date for filtering
