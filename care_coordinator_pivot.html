@@ -109,11 +109,8 @@ tbody td:first-child {
     summaryRows = records;
     renderButtons();
     try {
-      const [wl, wci] = await Promise.all([
-        grist.docApi.fetchTable('Week_List'),
-        grist.docApi.fetchTable('Weekly_Check_Ins')
-      ]);
-      buildTable(wl, wci);
+      const wl = await grist.docApi.fetchTable('Week_List');
+      buildTable(wl);
     } catch(e) {
       document.getElementById('loading').textContent = 'Error: ' + e.message;
     }
@@ -151,29 +148,22 @@ tbody td:first-child {
     if (rowId) grist.setCursorPos({ rowId });
   }
 
-  function buildTable(wl, wci) {
+  function buildTable(wl) {
     if (!wl || !wl.id || wl.id.length === 0) {
       document.getElementById('loading').textContent = 'No data found.';
       return;
     }
 
-    const weekLabels = {};
-    if (wci && wci.id) {
-      for (let i = 0; i < wci.id.length; i++) {
-        const label = wci.Week ? wci.Week[i] : null;
-        if (label) weekLabels[wci.id[i]] = String(label);
-      }
-    }
-
-    const weeksMap = new Map();
+    // Get week labels directly from Week_Value (the display value of the Week reference column)
+    const weeksMap = new Map(); // weekId → label
     const ccSet = new Set();
 
     for (let i = 0; i < wl.id.length; i++) {
       const weekId = wl.Week ? wl.Week[i] : null;
+      const weekLabel = wl.Week_Value ? wl.Week_Value[i] : null;
       const cc = getVal(wl, 'Care_Coordinator', i);
-      if (weekId) {
-        const label = weekLabels[weekId] || String(weekId);
-        weeksMap.set(weekId, label);
+      if (weekId && weekLabel) {
+        weeksMap.set(weekId, String(weekLabel));
       }
       if (cc) ccSet.add(cc);
     }
@@ -186,6 +176,7 @@ tbody td:first-child {
       return;
     }
 
+    // Build matrix
     const matrix = {};
     weeks.forEach(([wId]) => {
       matrix[wId] = {};
