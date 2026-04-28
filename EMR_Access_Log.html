@@ -191,10 +191,11 @@ tbody td.ts { color: #555; font-size: 10px; }
     // ── Step 2: listen for row selections ────────────────────
     grist.onRecord((record) => {
       if (!record || !record.id) return;
+      // DEBUG — show all fields on status bar so we know what comes through
+      setStatus('RAW keys: ' + Object.keys(record).join(', '));
+      console.log('onRecord full record:', JSON.stringify(record));
       // Skip if same row as last logged entry
       if (record.id === lastRowId) return;
-      // Debounce — wait for cursor to settle before logging
-      // Prevents logging intermediate rows when scrolling/navigating
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(async () => {
         if (record.id === lastRowId) return;
@@ -213,22 +214,31 @@ tbody td.ts { color: #555; font-size: 10px; }
       hour: '2-digit', minute: '2-digit', second: '2-digit'
     });
 
+    // Reference fields come through as IDs — use column mappings or
+    // check every possible variation Grist might send
     const practitioner = record.Practitioner_Name_Value
-                      || record.Practitioner_Name
+                      || record.gristHelper_Display
+                      || record.Practitioner_Name_Value2
+                      || (typeof record.Practitioner_Name === 'string' ? record.Practitioner_Name : '')
                       || '';
-    const rawFacility  = record.Facility_Name_Value || record.Facility_Name;
-    const facility     = Array.isArray(rawFacility)
-                           ? rawFacility.join(', ')
-                           : (rawFacility || '');
 
-    // Skip blank rows — only log if at least practitioner is present
-    if (!practitioner && !facility) return;
+    const rawFacility  = record.Facility_Name_Value
+                      || record.Facility_Name_Value2;
+    const facilityStr  = Array.isArray(rawFacility)
+                           ? rawFacility.filter(Boolean).join(', ')
+                           : (typeof rawFacility === 'string' ? rawFacility : '');
+
+    // Also try Username as signal that this is a real EMR row
+    const hasContent = practitioner || facilityStr || record.Username || record.EHR_System;
+    if (!hasContent) return;
+
+    const facility = facilityStr || '—';
 
     try {
       await grist.docApi.applyUserActions([
         ['AddRecord', 'EMR_Access_Log', null, {
           Practitioner: String(practitioner),
-          Facility:     String(facility),
+          Facility:     facilityStr || '—',
           Row_ID:       record.id
         }]
       ]);
