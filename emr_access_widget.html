@@ -166,67 +166,7 @@ body {
 }
 .status-msg.error { color: #b35a0a; }
 
-/* ── Access Log section ── */
-#accessLogSection {
-  display: none;
-  max-width: 620px;
-  width: 100%;
-  margin: 0 auto;
-}
-#accessLogSection.visible { display: block; }
 
-.log-header {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 12px;
-}
-.log-title {
-  font-size: 13px; font-weight: 600; color: #111;
-  display: flex; align-items: center; gap: 6px;
-}
-.log-actions { display: flex; gap: 8px; }
-.btn-sm {
-  padding: 4px 10px; border-radius: 6px;
-  border: 1.5px solid #e0deda; background: #f8f7f5;
-  font-family: 'DM Mono', monospace; font-size: 10px;
-  font-weight: 500; color: #333; cursor: pointer;
-  transition: all 0.15s;
-}
-.btn-sm:hover { border-color: #b35a0a; color: #b35a0a; background: #fde8d0; }
-.btn-sm.export:hover { border-color: #2d6a4f; color: #2d6a4f; background: #e8f5e9; }
-
-.log-table-wrap {
-  border-radius: 10px; border: 1px solid #e0deda;
-  overflow: hidden; overflow-x: auto;
-}
-table { width: 100%; border-collapse: collapse; }
-thead th {
-  background: #1a1916; color: #fff;
-  padding: 8px 12px;
-  font-family: 'DM Mono', monospace; font-size: 10px;
-  font-weight: 500; text-align: left;
-  white-space: nowrap; letter-spacing: 0.04em;
-}
-tbody tr { border-bottom: 1px solid #f5f4f2; }
-tbody tr:last-child { border-bottom: none; }
-tbody tr:hover { background: #fafaf8; }
-tbody td {
-  padding: 6px 12px;
-  font-family: 'DM Mono', monospace; font-size: 10px;
-  color: #111; white-space: nowrap;
-}
-tbody td.ts { color: #666; }
-
-.empty-log {
-  text-align: center; padding: 20px;
-  font-family: 'DM Mono', monospace; font-size: 11px; color: #bbb;
-}
-
-.live-dot {
-  width: 7px; height: 7px; border-radius: 50%;
-  background: #2d6a4f; display: inline-block;
-  animation: pulse 2s infinite;
-}
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
 </style>
 </head>
 <body>
@@ -264,34 +204,7 @@ tbody td.ts { color: #666; }
   </div>
 </div>
 
-<!-- ── Access Log (owner only) ── -->
-<div id="accessLogSection">
-  <div class="log-header">
-    <div class="log-title">
-      <span class="live-dot"></span>
-      EMR Access Log
-    </div>
-    <div class="log-actions">
-      <button class="btn-sm export" onclick="exportCSV()">⬇ Export CSV</button>
-      <button class="btn-sm" onclick="clearLog()">🗑 Clear</button>
-    </div>
-  </div>
-  <div class="log-table-wrap">
-    <div class="empty-log" id="emptyLog">No access events logged yet.</div>
-    <table id="logTable" style="display:none">
-      <thead>
-        <tr>
-          <th>Timestamp</th>
-          <th>User</th>
-          <th>Email</th>
-          <th>Practitioner</th>
-          <th>Facility</th>
-        </tr>
-      </thead>
-      <tbody id="logBody"></tbody>
-    </table>
-  </div>
-</div>
+
 
 <!-- ── QR Overlay ── -->
 <div id="qrOverlay">
@@ -328,10 +241,7 @@ tbody td.ts { color: #666; }
     } catch(e) {}
 
     // Show access log section for owners
-    if (isOwner) {
-      document.getElementById('accessLogSection').classList.add('visible');
-      loadLog();
-    }
+    
 
     // Load EMR data
     await loadData();
@@ -546,11 +456,11 @@ tbody td.ts { color: #666; }
           Row_ID:       row.id
         }]
       ]);
-      if (isOwner) loadLog();
+      
     } catch(e) { console.warn('Log write failed:', e); }
   }
 
-  // ── Load & render log (owners only) ─────────────────────────
+  
   async function loadLog() {
     try {
       const t = await grist.docApi.fetchTable('EMR_Access_Log');
