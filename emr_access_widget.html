@@ -224,8 +224,14 @@ body {
         });
       }
 
+      // DEBUG — log first 3 EMR rows to console so we can see raw field values
+      console.log('EMR_Access raw Facility_Name[0]:', JSON.stringify(emr.Facility_Name?.[0]));
+      console.log('EMR_Access raw Facility_Name[1]:', JSON.stringify(emr.Facility_Name?.[1]));
+      console.log('EMR_Access raw Practitioner_Name[0]:', JSON.stringify(emr.Practitioner_Name?.[0]));
+      console.log('emrData[0]:', JSON.stringify(emrData[0]));
+      console.log('emrData[1]:', JSON.stringify(emrData[1]));
+      setStatus('DEBUG: fac[0]=' + JSON.stringify(emr.Facility_Name?.[0]) + ' pract[0]=' + JSON.stringify(emr.Practitioner_Name?.[0]));
       buildPractitionerDropdown();
-      setStatus('');
     } catch(e) {
       setStatus('Error loading data: ' + e.message, true);
     }
@@ -321,8 +327,9 @@ body {
       { label: 'EHR System',      value: row.ehrSystem,     full: false },
       { label: 'Primary/Backup',  value: row.primaryBackup, full: false },
       { label: 'Billing Access',  value: row.billingAccess, full: false },
-      { label: 'Password',        value: row.password,      full: false, isPassword: true },
-      { label: 'Notes',           value: row.notes,         full: true  }
+      { label: 'Password',        value: row.password,      full: false },
+      { label: 'Notes',           value: row.notes,         full: true  },
+      { label: 'QR Code',          value: row.qrCode,        full: true,  isQR: true }
     ];
 
     fields.forEach(f => {
@@ -336,21 +343,22 @@ body {
       const val = document.createElement('div');
       val.className = 'detail-value' + (f.isPassword ? ' redacted' : '');
 
-      if (f.isPassword) {
-        val.id = 'passwordVal';
-        val.textContent = '••••••••••••';
-        const hint = document.createElement('div');
-        hint.className = 'reveal-hint';
-        hint.textContent = 'Click to reveal';
-        val.onclick = () => {
-          passwordShown = !passwordShown;
-          val.textContent = passwordShown ? row.password : '••••••••••••';
-          hint.textContent = passwordShown ? 'Click to hide' : 'Click to reveal';
-          val.className = 'detail-value' + (passwordShown ? '' : ' redacted');
-        };
+      if (f.isQR && f.value) {
+        // Render QR as image if it's a URL or base64, otherwise as text
         div.appendChild(lbl);
-        div.appendChild(val);
-        div.appendChild(hint);
+        if (f.value.startsWith('http') || f.value.startsWith('data:')) {
+          const img = document.createElement('img');
+          img.src = f.value;
+          img.style.cssText = 'max-width:120px;max-height:120px;border-radius:6px;margin-top:4px;';
+          div.appendChild(img);
+        } else if (f.value && f.value !== '—') {
+          val.textContent = f.value;
+          div.appendChild(val);
+        } else {
+          div.style.display = 'none';
+        }
+      } else if (f.isQR && !f.value) {
+        div.style.display = 'none';
       } else {
         val.textContent = f.value;
         div.appendChild(lbl);
