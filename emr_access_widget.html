@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EMR Access</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: #f1f0ed;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.card {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e0deda;
+  padding: 20px;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.card-title {
+  font-size: 14px; font-weight: 600; color: #111;
+  margin-bottom: 16px;
+  display: flex; align-items: center; gap: 8px;
+}
+
+.field { margin-bottom: 14px; }
+.field label {
+  display: block; font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.07em;
+  color: #888; margin-bottom: 5px;
+  font-family: 'DM Mono', monospace;
+}
+.field select {
+  width: 100%; padding: 8px 12px;
+  border: 1.5px solid #e0deda; border-radius: 8px;
+  font-family: 'DM Sans', sans-serif; font-size: 13px;
+  color: #111; background: #fafaf8; outline: none;
+  cursor: pointer; transition: border-color 0.15s;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+.field select:focus { border-color: #2d6a4f; background-color: #fff; }
+.field select:disabled { color: #bbb; cursor: not-allowed; }
+
+/* ── Details panel ── */
+#detailsPanel {
+  display: none;
+  margin-top: 16px;
+  border-top: 1px solid #f0eeea;
+  padding-top: 16px;
+}
+#detailsPanel.visible { display: block; }
+
+.timer-bar-wrap {
+  height: 4px; background: #f0eeea;
+  border-radius: 2px; margin-bottom: 14px; overflow: hidden;
+}
+.timer-bar {
+  height: 100%; background: #2d6a4f;
+  border-radius: 2px;
+  transition: width 1s linear;
+  width: 100%;
+}
+.timer-bar.warning { background: #e65100; }
+
+.timer-label {
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  color: #aaa; margin-bottom: 12px; text-align: right;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.detail-item {
+  background: #f8f7f5;
+  border: 1px solid #e0deda;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.detail-item.full { grid-column: 1 / -1; }
+.detail-label {
+  font-family: 'DM Mono', monospace; font-size: 9px;
+  font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.07em; color: #aaa;
+  margin-bottom: 4px;
+}
+.detail-value {
+  font-family: 'DM Mono', monospace; font-size: 12px;
+  color: #111; font-weight: 500;
+  word-break: break-all;
+}
+.detail-value.redacted {
+  color: #ccc; letter-spacing: 0.15em; cursor: pointer;
+  user-select: none;
+}
+.detail-value.redacted:hover { color: #888; }
+.reveal-hint {
+  font-size: 9px; color: #bbb;
+  font-family: 'DM Mono', monospace;
+  margin-top: 2px;
+}
+
+.status-msg {
+  font-family: 'DM Mono', monospace; font-size: 11px;
+  color: #aaa; text-align: center; padding: 12px 0;
+}
+.status-msg.error { color: #b35a0a; }
+
+.btn-clear {
+  margin-top: 14px; width: 100%;
+  padding: 8px; border-radius: 8px;
+  border: 1.5px solid #e0deda; background: #fff;
+  font-family: 'DM Sans', sans-serif; font-size: 12px;
+  font-weight: 500; color: #888; cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-clear:hover { border-color: #b35a0a; color: #b35a0a; }
+
+.loading-msg {
+  font-family: 'DM Mono', monospace; font-size: 11px;
+  color: #aaa; padding: 8px 0;
+}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="card-title">🔐 EMR Access Lookup</div>
+
+  <div class="field">
+    <label>Practitioner</label>
+    <select id="practSelect" onchange="onPractChange()">
+      <option value="">— Select practitioner —</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label>Facility</label>
+    <select id="facSelect" onchange="onFacChange()" disabled>
+      <option value="">— Select facility —</option>
+    </select>
+  </div>
+
+  <div class="status-msg" id="statusMsg"></div>
+
+  <div id="detailsPanel">
+    <div class="timer-bar-wrap">
+      <div class="timer-bar" id="timerBar"></div>
+    </div>
+    <div class="timer-label" id="timerLabel">Details will hide in 30s</div>
+
+    <div class="detail-grid" id="detailGrid"></div>
+
+    <button class="btn-clear" onclick="clearDetails()">✕ Hide Details</button>
+  </div>
+</div>
+
+<script>
+  const TIMEOUT_SEC = 30;
+  let emrData       = [];   // flat array of EMR_Access rows with resolved names
+  let timerInterval = null;
+  let secondsLeft   = TIMEOUT_SEC;
+  let passwordShown = false;
+
+  grist.ready({ requiredAccess: 'full' });
+
+  // ── Load all data on init ────────────────────────────────────
+  async function loadData() {
+    setStatus('Loading data…');
+    try {
+      const [emr, employees, facilities] = await Promise.all([
+        grist.docApi.fetchTable('EMR_Access'),
+        grist.docApi.fetchTable('Employee'),
+        grist.docApi.fetchTable('Facility')
+      ]);
+
+      // Build lookup maps
+      const empMap = {};
+      for (let i = 0; i < employees.id.length; i++) {
+        empMap[employees.id[i]] = employees.Employee_Name?.[i] || '';
+      }
+      const facMap = {};
+      for (let i = 0; i < facilities.id.length; i++) {
+        facMap[facilities.id[i]] = facilities.Facility_Name?.[i] || '';
+      }
+
+      // Build flat rows
+      emrData = [];
+      for (let i = 0; i < emr.id.length; i++) {
+        const practId = emr.Practitioner_Name?.[i];
+        const facIds  = emr.Facility_Name?.[i];
+        const facIdList = Array.isArray(facIds) ? facIds : (facIds ? [facIds] : []);
+
+        const practName = empMap[practId] || '';
+        const facNames  = facIdList.map(id => facMap[id] || '').filter(Boolean);
+
+        emrData.push({
+          id:              emr.id[i],
+          practId,
+          practName,
+          facIds:          facIdList,
+          facNames,
+          username:        emr.Username?.[i]           || '—',
+          password:        emr.Password?.[i]           || '—',
+          ehrSystem:       emr.EHR_System?.[i]         || '—',
+          primaryBackup:   emr.Primary_Backup?.[i]     || '—',
+          billingAccess:   emr.Billing_Access_Type?.[i]|| '—',
+          notes:           emr.Notes?.[i]              || '—',
+          qrCode:          emr.QR_Code?.[i]            || ''
+        });
+      }
+
+      buildPractitionerDropdown();
+      setStatus('');
+    } catch(e) {
+      setStatus('Error loading data: ' + e.message, true);
+    }
+  }
+
+  // ── Build practitioner dropdown ──────────────────────────────
+  function buildPractitionerDropdown() {
+    const sel = document.getElementById('practSelect');
+    sel.innerHTML = '<option value="">— Select practitioner —</option>';
+
+    const seen = new Set();
+    const practs = [];
+    emrData.forEach(r => {
+      if (r.practName && !seen.has(r.practId)) {
+        seen.add(r.practId);
+        practs.push({ id: r.practId, name: r.practName });
+      }
+    });
+    practs.sort((a, b) => a.name.localeCompare(b.name));
+    practs.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.name;
+      sel.appendChild(opt);
+    });
+  }
+
+  // ── Practitioner selected ────────────────────────────────────
+  function onPractChange() {
+    clearDetails();
+    const practId = parseInt(document.getElementById('practSelect').value);
+    const facSel  = document.getElementById('facSelect');
+    facSel.innerHTML = '<option value="">— Select facility —</option>';
+
+    if (!practId) {
+      facSel.disabled = true;
+      return;
+    }
+
+    // Collect all facilities for this practitioner
+    const seen = new Set();
+    const facs = [];
+    emrData.forEach(r => {
+      if (r.practId === practId) {
+        r.facIds.forEach((fid, idx) => {
+          if (!seen.has(fid)) {
+            seen.add(fid);
+            facs.push({ id: fid, name: r.facNames[idx] || fid });
+          }
+        });
+      }
+    });
+    facs.sort((a, b) => a.name.localeCompare(b.name));
+    facs.forEach(f => {
+      const opt = document.createElement('option');
+      opt.value = f.id;
+      opt.textContent = f.name;
+      facSel.appendChild(opt);
+    });
+    facSel.disabled = false;
+  }
+
+  // ── Facility selected → show details ────────────────────────
+  function onFacChange() {
+    clearDetails();
+    const practId = parseInt(document.getElementById('practSelect').value);
+    const facId   = parseInt(document.getElementById('facSelect').value);
+    if (!practId || !facId) return;
+
+    // Find matching EMR row
+    const row = emrData.find(r =>
+      r.practId === practId && r.facIds.includes(facId)
+    );
+    if (!row) {
+      setStatus('No EMR record found for this combination.', true);
+      return;
+    }
+
+    setStatus('');
+    showDetails(row);
+    logAccess(row, facId);
+    startTimer();
+  }
+
+  // ── Render details ───────────────────────────────────────────
+  function showDetails(row) {
+    passwordShown = false;
+    const grid = document.getElementById('detailGrid');
+    grid.innerHTML = '';
+
+    const fields = [
+      { label: 'Username',        value: row.username,      full: false },
+      { label: 'EHR System',      value: row.ehrSystem,     full: false },
+      { label: 'Primary/Backup',  value: row.primaryBackup, full: false },
+      { label: 'Billing Access',  value: row.billingAccess, full: false },
+      { label: 'Password',        value: row.password,      full: false, isPassword: true },
+      { label: 'Notes',           value: row.notes,         full: true  }
+    ];
+
+    fields.forEach(f => {
+      const div = document.createElement('div');
+      div.className = 'detail-item' + (f.full ? ' full' : '');
+
+      const lbl = document.createElement('div');
+      lbl.className = 'detail-label';
+      lbl.textContent = f.label;
+
+      const val = document.createElement('div');
+      val.className = 'detail-value' + (f.isPassword ? ' redacted' : '');
+
+      if (f.isPassword) {
+        val.id = 'passwordVal';
+        val.textContent = '••••••••••••';
+        const hint = document.createElement('div');
+        hint.className = 'reveal-hint';
+        hint.textContent = 'Click to reveal';
+        val.onclick = () => {
+          passwordShown = !passwordShown;
+          val.textContent = passwordShown ? row.password : '••••••••••••';
+          hint.textContent = passwordShown ? 'Click to hide' : 'Click to reveal';
+          val.className = 'detail-value' + (passwordShown ? '' : ' redacted');
+        };
+        div.appendChild(lbl);
+        div.appendChild(val);
+        div.appendChild(hint);
+      } else {
+        val.textContent = f.value;
+        div.appendChild(lbl);
+        div.appendChild(val);
+      }
+
+      grid.appendChild(div);
+    });
+
+    document.getElementById('detailsPanel').classList.add('visible');
+  }
+
+  // ── 30-second countdown ──────────────────────────────────────
+  function startTimer() {
+    secondsLeft = TIMEOUT_SEC;
+    clearInterval(timerInterval);
+    updateTimerUI();
+
+    timerInterval = setInterval(() => {
+      secondsLeft--;
+      updateTimerUI();
+      if (secondsLeft <= 0) {
+        clearInterval(timerInterval);
+        clearDetails();
+      }
+    }, 1000);
+  }
+
+  function updateTimerUI() {
+    const pct = (secondsLeft / TIMEOUT_SEC) * 100;
+    const bar = document.getElementById('timerBar');
+    const lbl = document.getElementById('timerLabel');
+    bar.style.width = pct + '%';
+    bar.className   = 'timer-bar' + (secondsLeft <= 10 ? ' warning' : '');
+    lbl.textContent = `Details will hide in ${secondsLeft}s`;
+  }
+
+  function clearDetails() {
+    clearInterval(timerInterval);
+    document.getElementById('detailsPanel').classList.remove('visible');
+    document.getElementById('detailGrid').innerHTML = '';
+    passwordShown = false;
+  }
+
+  // ── Log access to EMR_Access_Log ─────────────────────────────
+  async function logAccess(row, facId) {
+    try {
+      const facName = row.facNames[row.facIds.indexOf(facId)] || '—';
+      await grist.docApi.applyUserActions([
+        ['AddRecord', 'EMR_Access_Log', null, {
+          Practitioner: row.practName,
+          Facility:     facName,
+          Row_ID:       row.id
+        }]
+      ]);
+    } catch(e) {
+      console.warn('Log write failed:', e.message);
+    }
+  }
+
+  function setStatus(msg, isError = false) {
+    const el = document.getElementById('statusMsg');
+    el.textContent = msg;
+    el.className   = 'status-msg' + (isError ? ' error' : '');
+  }
+
+  loadData();
+</script>
+</body>
+</html>
