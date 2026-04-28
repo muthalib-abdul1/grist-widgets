@@ -200,7 +200,10 @@ body {
       for (let i = 0; i < emr.id.length; i++) {
         const practId = emr.Practitioner_Name?.[i];
         const facIds  = emr.Facility_Name?.[i];
-        const facIdList = Array.isArray(facIds) ? facIds : (facIds ? [facIds] : []);
+        // Grist ReferenceList comes as ['L', id1, id2, ...] — strip the 'L' marker
+        let facIdList = Array.isArray(facIds) ? facIds : (facIds ? [facIds] : []);
+        if (facIdList.length > 0 && facIdList[0] === 'L') facIdList = facIdList.slice(1);
+        facIdList = facIdList.filter(x => typeof x === 'number');
 
         const practName = empMap[practId] || '';
         const facNames  = facIdList.map(id => facMap[id] || '').filter(Boolean);
