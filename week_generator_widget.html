@@ -78,7 +78,6 @@ body {
 .log-item.error   { background: #fde8d0; color: #b35a0a; }
 .log-item.info    { background: #e8f0fe; color: #1a56db; }
 
-.divider { border: none; border-top: 1px solid #f0eeea; margin: 20px 0; }
 .section-title {
   font-size: 11px; font-weight: 600; text-transform: uppercase;
   letter-spacing: 0.07em; color: #aaa;
@@ -127,7 +126,6 @@ body {
     updatePreview();
   };
 
-  // Grist setup
   grist.ready({ requiredAccess: 'full' });
 
   function updatePreview() {
@@ -170,23 +168,32 @@ body {
       return;
     }
 
-    // ── Duplicate check ──────────────────────────────────────────
     clearLog();
+
+    // ── Duplicate check (computed from raw data, not formula column) ──
     addLog('Checking for duplicates in Weekly Coverage Schedule…', 'info');
     try {
       const coverage = await grist.docApi.fetchTable('Weekly_Coverage_Schedule');
-      const duplicates = [];
+      const seen = new Map();
+      const duplicates = new Set();
+
       for (let i = 0; i < coverage.id.length; i++) {
-        const dupeFlag = coverage.Duplicate_Check ? coverage.Duplicate_Check[i] : false;
-        if (dupeFlag) {
-          const pName = coverage.Practitioner_Name_Value?.[i] || coverage.Practitioner_Name?.[i] || 'Unknown';
-          const fName = coverage.Facility_Name_Value?.[i]     || coverage.Facility_Name?.[i]     || 'Unknown';
-          duplicates.push(`${pName} @ ${fName}`);
+        const pId = coverage.Practitioner_Name?.[i];
+        const fId = coverage.Facility_Name?.[i];
+        const pName = coverage.Practitioner_Name_Value?.[i] || pId || 'Unknown';
+        const fName = coverage.Facility_Name_Value?.[i]     || fId || 'Unknown';
+        const key = `${pId}__${fId}`;
+
+        if (seen.has(key)) {
+          duplicates.add(`${pName} @ ${fName}`);
+        } else {
+          seen.set(key, true);
         }
       }
-      if (duplicates.length > 0) {
+
+      if (duplicates.size > 0) {
         addLog('🚫 Duplicates found — fix before generating:', 'error');
-        [...new Set(duplicates)].forEach(d => addLog(`  ↳ ${d}`, 'error'));
+        duplicates.forEach(d => addLog(`  ↳ ${d}`, 'error'));
         return;
       }
       addLog('✓ No duplicates found', 'success');
@@ -194,7 +201,7 @@ body {
       addLog(`⚠ Could not verify duplicates: ${e.message}`, 'error');
       return;
     }
-    // ─────────────────────────────────────────────────────────────
+    // ──────────────────────────────────────────────────────────────────
 
     const weekLabel = `Week ${weekNum} - ${formatDate(weekDate)}`;
     const btn = document.getElementById('generateBtn');
