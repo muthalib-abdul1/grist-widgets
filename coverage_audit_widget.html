@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coverage Audit</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: #f1f0ed;
+  min-height: 100vh;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.page-title {
+  font-size: 13px; font-weight: 600; color: #111;
+  display: flex; align-items: center; gap: 8px;
+}
+.refresh-btn {
+  padding: 4px 12px; border-radius: 6px;
+  border: 1.5px solid #e0deda; background: #fff;
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  font-weight: 500; color: #444; cursor: pointer;
+  transition: all 0.15s;
+}
+.refresh-btn:hover { border-color: #2d6a4f; color: #2d6a4f; background: #f0f7f4; }
+
+.panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  flex: 1;
+}
+
+.panel {
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid #e0deda;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid #f0eeea;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.panel-title {
+  font-size: 12px; font-weight: 600; color: #111;
+  display: flex; align-items: center; gap: 6px;
+}
+.badge {
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  font-weight: 600; padding: 1px 7px; border-radius: 10px;
+}
+.badge.warn  { background: #fde8d0; color: #b35a0a; }
+.badge.ok    { background: #d4edda; color: #1a7a40; }
+.badge.info  { background: #e8f0fe; color: #1a56db; }
+
+.panel-body { overflow-y: auto; flex: 1; }
+
+table { width: 100%; border-collapse: collapse; }
+thead th {
+  background: #f8f7f5;
+  padding: 6px 12px;
+  font-family: 'DM Mono', monospace; font-size: 9px;
+  font-weight: 700; color: #888; text-align: left;
+  white-space: nowrap; letter-spacing: 0.06em;
+  text-transform: uppercase;
+  position: sticky; top: 0;
+  border-bottom: 1px solid #e0deda;
+}
+tbody tr { border-bottom: 1px solid #f5f4f2; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: #fafaf8; }
+tbody td {
+  padding: 6px 12px;
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  color: #111; white-space: nowrap;
+}
+tbody td.count {
+  font-weight: 700; color: #b35a0a;
+  text-align: center;
+}
+tbody td.status {
+  font-size: 9px; color: #888;
+}
+tbody td.pract { color: #2d6a4f; }
+
+.empty {
+  padding: 24px; text-align: center;
+  font-family: 'DM Mono', monospace; font-size: 11px; color: #bbb;
+}
+.loading {
+  padding: 20px; text-align: center;
+  font-family: 'DM Mono', monospace; font-size: 11px; color: #aaa;
+}
+
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  display: inline-block; flex-shrink: 0;
+}
+.dot-warn  { background: #e65100; }
+.dot-ok    { background: #2d6a4f; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="page-title">
+    🏥 Coverage Audit
+  </div>
+  <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
+</div>
+
+<div class="panels">
+
+  <!-- Panel 1: Duplicate facilities -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">
+        <span class="status-dot dot-warn"></span>
+        Duplicate Facilities
+      </div>
+      <span class="badge warn" id="dupBadge">—</span>
+    </div>
+    <div class="panel-body">
+      <div class="loading" id="dupLoading">Loading…</div>
+      <table id="dupTable" style="display:none">
+        <thead>
+          <tr>
+            <th>Facility</th>
+            <th>Practitioner</th>
+            <th style="text-align:center">Count</th>
+          </tr>
+        </thead>
+        <tbody id="dupBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Panel 2: Uncovered facilities -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">
+        <span class="status-dot dot-warn"></span>
+        Not in Coverage Schedule
+      </div>
+      <span class="badge warn" id="uncovBadge">—</span>
+    </div>
+    <div class="panel-body">
+      <div class="loading" id="uncovLoading">Loading…</div>
+      <table id="uncovTable" style="display:none">
+        <thead>
+          <tr>
+            <th>Facility</th>
+            <th>Status</th>
+            <th>Type</th>
+          </tr>
+        </thead>
+        <tbody id="uncovBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  grist.ready({ requiredAccess: 'full' });
+  grist.onRecords(() => loadData());
+
+  async function loadData() {
+    try {
+      const [wcs, facilities] = await Promise.all([
+        grist.docApi.fetchTable('Weekly_Coverage_Schedule'),
+        grist.docApi.fetchTable('Facility')
+      ]);
+
+      // Build facility name map
+      const facMap = {};
+      for (let i = 0; i < facilities.id.length; i++) {
+        facMap[facilities.id[i]] = {
+          name:   facilities.Facility_Name?.[i]   || '—',
+          status: facilities.Facility_Status?.[i] || '',
+          type:   facilities.Facility_Type?.[i]   || ''
+        };
+      }
+
+      // Build practitioner name map from WCS
+      // WCS Practitioner_Name is a reference to Employee
+      // We'll use the _Value if available
+      const wcsCount = wcs.id.length;
+
+      // ── Duplicate check ──────────────────────────────────────
+      // Count facility occurrences in WCS with practitioner
+      const facOccurrences = {}; // facId -> [{practName}]
+      for (let i = 0; i < wcsCount; i++) {
+        const facId   = wcs.Facility_Name?.[i];
+        const practName = wcs.Practitioner_Name_Value?.[i]
+                       || wcs.Practitioner_Name?.[i]
+                       || '—';
+        if (!facId) continue;
+        if (!facOccurrences[facId]) facOccurrences[facId] = [];
+        facOccurrences[facId].push(String(practName));
+      }
+
+      const duplicates = [];
+      Object.entries(facOccurrences).forEach(([facId, practs]) => {
+        if (practs.length > 1) {
+          duplicates.push({
+            facName: facMap[parseInt(facId)]?.name || facId,
+            practs,
+            count: practs.length
+          });
+        }
+      });
+      duplicates.sort((a, b) => b.count - a.count);
+
+      renderDuplicates(duplicates);
+
+      // ── Uncovered facilities ──────────────────────────────────
+      // Facilities in Facility table where status != "Lost"
+      // that are NOT referenced in WCS at all
+      const coveredFacIds = new Set(
+        wcs.Facility_Name
+          ? wcs.Facility_Name.filter(id => id && typeof id === 'number')
+          : []
+      );
+
+      const uncovered = [];
+      for (let i = 0; i < facilities.id.length; i++) {
+        const status = facilities.Facility_Status?.[i] || '';
+        if (status === 'Lost') continue;           // skip Lost
+        if (coveredFacIds.has(facilities.id[i])) continue; // skip covered
+        uncovered.push({
+          name:   facilities.Facility_Name?.[i]   || '—',
+          status: status || 'No Status',
+          type:   facilities.Facility_Type?.[i]   || '—'
+        });
+      }
+      uncovered.sort((a, b) => a.name.localeCompare(b.name));
+
+      renderUncovered(uncovered);
+
+    } catch(e) {
+      document.getElementById('dupLoading').textContent  = 'Error: ' + e.message;
+      document.getElementById('uncovLoading').textContent = 'Error: ' + e.message;
+    }
+  }
+
+  function renderDuplicates(duplicates) {
+    const tbody   = document.getElementById('dupBody');
+    const table   = document.getElementById('dupTable');
+    const loading = document.getElementById('dupLoading');
+    const badge   = document.getElementById('dupBadge');
+
+    loading.style.display = 'none';
+    badge.textContent = duplicates.length;
+    badge.className = 'badge ' + (duplicates.length > 0 ? 'warn' : 'ok');
+
+    if (duplicates.length === 0) {
+      table.style.display = 'none';
+      loading.textContent = '✓ No duplicate facilities found.';
+      loading.style.display = 'block';
+      return;
+    }
+
+    table.style.display = 'table';
+    tbody.innerHTML = '';
+
+    duplicates.forEach(d => {
+      // One row per practitioner combo
+      const uniquePracts = [...new Set(d.practs)];
+      uniquePracts.forEach((p, idx) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${idx === 0 ? d.facName : ''}</td>
+          <td class="pract">${p}</td>
+          ${idx === 0 ? `<td class="count" rowspan="${uniquePracts.length}">${d.count}</td>` : ''}
+        `;
+        tbody.appendChild(tr);
+      });
+    });
+  }
+
+  function renderUncovered(uncovered) {
+    const tbody   = document.getElementById('uncovBody');
+    const table   = document.getElementById('uncovTable');
+    const loading = document.getElementById('uncovLoading');
+    const badge   = document.getElementById('uncovBadge');
+
+    loading.style.display = 'none';
+    badge.textContent = uncovered.length;
+    badge.className = 'badge ' + (uncovered.length > 0 ? 'warn' : 'ok');
+
+    if (uncovered.length === 0) {
+      table.style.display = 'none';
+      loading.textContent = '✓ All active facilities are covered.';
+      loading.style.display = 'block';
+      return;
+    }
+
+    table.style.display = 'table';
+    tbody.innerHTML = '';
+
+    uncovered.forEach(f => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${f.name}</td>
+        <td class="status">${f.status}</td>
+        <td class="status">${f.type}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  loadData();
+</script>
+</body>
+</html>
