@@ -17,6 +17,7 @@ body {
   justify-content: flex-end;
 }
 
+/* ── Collapsed bar ── */
 #collapsedBar {
   display: flex;
   align-items: center;
@@ -43,6 +44,7 @@ body {
 .bar-arrow { font-size: 12px; transition: transform 0.2s; }
 .bar-arrow.open { transform: rotate(180deg); }
 
+/* ── Expanded panel ── */
 #expandedPanel {
   display: none;
   background: #fff;
@@ -50,7 +52,7 @@ body {
   border-bottom: none;
   border-radius: 10px 10px 0 0;
   flex-direction: column;
-  max-height: 420px;
+  max-height: 460px;
 }
 #expandedPanel.visible { display: flex; }
 
@@ -75,14 +77,33 @@ body {
 .btn-sm:hover { border-color: #b35a0a; color: #b35a0a; background: #fde8d0; }
 .btn-sm.export:hover { border-color: #2d6a4f; color: #2d6a4f; background: #e8f5e9; }
 
-.debug-bar {
-  padding: 5px 12px;
-  background: #f0f7f4;
-  font-family: 'DM Mono', monospace; font-size: 10px; color: #2d6a4f;
-  border-bottom: 1px solid #d8eee6;
+/* ── User identity bar ── */
+.identity-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 14px;
+  background: #f8f7f5;
+  border-bottom: 1px solid #ece9e4;
   flex-shrink: 0;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.identity-bar label {
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  color: #888; text-transform: uppercase; letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+.identity-bar input {
+  flex: 1; padding: 3px 8px;
+  border: 1px solid #e0deda; border-radius: 5px;
+  font-family: 'DM Mono', monospace; font-size: 11px;
+  color: #111; background: #fff; outline: none;
+}
+.identity-bar input:focus { border-color: #2d6a4f; }
+.identity-bar .save-btn {
+  padding: 3px 10px; border-radius: 5px;
+  border: 1.5px solid #2d6a4f; background: #2d6a4f;
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  color: #fff; cursor: pointer;
+}
+.identity-bar .save-btn:hover { background: #1a4d35; }
 
 .log-wrap { overflow-y: auto; flex: 1; }
 
@@ -91,7 +112,7 @@ thead th {
   background: #f8f7f5;
   padding: 7px 12px;
   font-family: 'DM Mono', monospace; font-size: 10px;
-  font-weight: 600; color: #111; text-align: left;
+  font-weight: 700; color: #111; text-align: left;
   white-space: nowrap;
   position: sticky; top: 0;
   border-bottom: 1px solid #e0deda;
@@ -102,10 +123,9 @@ tbody tr:hover { background: #fafaf8; }
 tbody td {
   padding: 6px 12px;
   font-family: 'DM Mono', monospace; font-size: 11px;
-  color: #111;
-  white-space: nowrap;
+  color: #111; white-space: nowrap;
 }
-tbody td.timestamp { color: #555; font-size: 10px; }
+tbody td.ts { color: #444; font-size: 10px; }
 
 .empty-state {
   padding: 24px; text-align: center;
@@ -135,7 +155,15 @@ tbody td.timestamp { color: #555; font-size: 10px; }
       <button class="btn-sm" onclick="clearLog()">🗑 Clear Log</button>
     </div>
   </div>
-  <div class="debug-bar" id="debugBar">Initialising…</div>
+
+  <!-- Identity bar — shows who is viewing, editable -->
+  <div class="identity-bar">
+    <label>Viewing as:</label>
+    <input type="text"  id="inputName"  placeholder="Your name"  />
+    <input type="email" id="inputEmail" placeholder="Your email" />
+    <button class="save-btn" onclick="saveIdentity()">Save</button>
+  </div>
+
   <div class="log-wrap">
     <div class="empty-state" id="emptyState">No access events logged yet.</div>
     <table id="logTable" style="display:none">
@@ -162,81 +190,80 @@ tbody td.timestamp { color: #555; font-size: 10px; }
 </div>
 
 <script>
-  const STORAGE_KEY = 'emr_access_log_v3';
+  const STORAGE_KEY    = 'emr_access_log_v4';
+  const IDENTITY_KEY   = 'emr_access_identity_v1';
   let isOpen = false;
-  let userName  = 'Unknown';
-  let userEmail = 'Unknown';
-  let userResolved = false;
-
-  // Step 1 — resolve user BEFORE anything else
-  function resolveUser() {
-    return new Promise((resolve) => {
-      try {
-        if (typeof grist.getUser === 'function') {
-          grist.getUser().then(u => {
-            if (u) {
-              // Log raw so we can debug field names
-              setDebug('RAW: ' + JSON.stringify(u));
-              // Try every known field variation
-              userName  = u.name || u.Name || u.fullName || u.FullName || u.displayName || u.email || u.Email || 'Unknown';
-              userEmail = u.email || u.Email || u.loginEmail || u.login_email || 'Unknown';
-            } else {
-              setDebug('getUser returned empty');
-            }
-            userResolved = true;
-            resolve();
-          }).catch(e => {
-            setDebug('getUser error: ' + e.message);
-            userResolved = true;
-            resolve();
-          });
-        } else {
-          setDebug('grist.getUser not available');
-          userResolved = true;
-          resolve();
-        }
-      } catch(e) {
-        setDebug('getUser threw: ' + e.message);
-        userResolved = true;
-        resolve();
-      }
-    });
-  }
+  let userName  = '';
+  let userEmail = '';
 
   grist.ready({ requiredAccess: 'full' });
 
-  // Resolve user first, then start listening
-  resolveUser().then(() => {
-    setDebug(`Ready — user: ${userName} (${userEmail})`);
-
-    grist.onRecord((record) => {
-      if (!record || !record.id) return;
-      logAccess(record);
-      updateBarCount();
-      if (isOpen) renderTable();
-    });
-  });
-
-  function setDebug(msg) {
-    const el = document.getElementById('debugBar');
-    if (el) el.textContent = msg;
+  // ── Load saved identity ──────────────────────────────────────
+  function loadIdentity() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(IDENTITY_KEY) || '{}');
+      userName  = saved.name  || '';
+      userEmail = saved.email || '';
+      document.getElementById('inputName').value  = userName;
+      document.getElementById('inputEmail').value = userEmail;
+    } catch(e) {}
   }
 
+  function saveIdentity() {
+    userName  = document.getElementById('inputName').value.trim();
+    userEmail = document.getElementById('inputEmail').value.trim();
+    try {
+      localStorage.setItem(IDENTITY_KEY, JSON.stringify({ name: userName, email: userEmail }));
+    } catch(e) {}
+  }
+
+  // ── Try grist.getUser() and pre-fill if it works ─────────────
+  function tryAutoFillUser() {
+    if (typeof grist.getUser !== 'function') return;
+    grist.getUser().then(u => {
+      if (!u) return;
+      const n = u.name  || u.Name  || u.fullName  || '';
+      const e = u.email || u.Email || u.loginEmail || '';
+      // Only auto-fill if identity fields are empty
+      if (n && !userName) {
+        userName = n;
+        document.getElementById('inputName').value = n;
+      }
+      if (e && !userEmail) {
+        userEmail = e;
+        document.getElementById('inputEmail').value = e;
+      }
+      if (n || e) saveIdentity();
+    }).catch(() => {});
+  }
+
+  // ── Record listener ──────────────────────────────────────────
+  grist.onRecord((record) => {
+    if (!record || !record.id) return;
+    logAccess(record);
+    updateBarCount();
+    if (isOpen) renderTable();
+  });
+
   function logAccess(record) {
+    const name  = userName  || 'Unknown';
+    const email = userEmail || 'Unknown';
+
     const practitioner = record.Practitioner_Name_Value
                       || record.Practitioner_Name
                       || '—';
-    const facility = Array.isArray(record.Facility_Name_Value)
-                      ? record.Facility_Name_Value.join(', ')
-                      : (record.Facility_Name_Value || record.Facility_Name || '—');
+    const rawFacility = record.Facility_Name_Value || record.Facility_Name;
+    const facility = Array.isArray(rawFacility)
+                      ? rawFacility.join(', ')
+                      : (rawFacility || '—');
 
     const entry = {
-      timestamp:    new Date().toLocaleString('en-US', {
-                      month: '2-digit', day: '2-digit', year: 'numeric',
-                      hour: '2-digit', minute: '2-digit', second: '2-digit'
-                    }),
-      userName,
-      userEmail,
+      timestamp: new Date().toLocaleString('en-US', {
+                   month: '2-digit', day: '2-digit', year: 'numeric',
+                   hour: '2-digit', minute: '2-digit', second: '2-digit'
+                 }),
+      name,
+      email,
       practitioner,
       facility
     };
@@ -244,11 +271,7 @@ tbody td.timestamp { color: #555; font-size: 10px; }
     const logs = getLogs();
     logs.unshift(entry);
     if (logs.length > 500) logs.length = 500;
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(logs));
-    } catch(e) {
-      setDebug('Storage error: ' + e.message);
-    }
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(logs)); } catch(e) {}
   }
 
   function getLogs() {
@@ -261,10 +284,10 @@ tbody td.timestamp { color: #555; font-size: 10px; }
   }
 
   function renderTable() {
-    const logs   = getLogs();
-    const tbody  = document.getElementById('logBody');
-    const table  = document.getElementById('logTable');
-    const empty  = document.getElementById('emptyState');
+    const logs  = getLogs();
+    const tbody = document.getElementById('logBody');
+    const table = document.getElementById('logTable');
+    const empty = document.getElementById('emptyState');
 
     if (logs.length === 0) {
       table.style.display = 'none';
@@ -277,9 +300,9 @@ tbody td.timestamp { color: #555; font-size: 10px; }
     logs.forEach(e => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td class="timestamp">${e.timestamp}</td>
-        <td>${e.userName}</td>
-        <td>${e.userEmail}</td>
+        <td class="ts">${e.timestamp}</td>
+        <td>${e.name}</td>
+        <td>${e.email}</td>
         <td>${e.practitioner}</td>
         <td>${e.facility}</td>
       `;
@@ -306,7 +329,7 @@ tbody td.timestamp { color: #555; font-size: 10px; }
     if (logs.length === 0) return;
     const headers = ['Timestamp', 'User Name', 'Email', 'Practitioner', 'Facility'];
     const rows = logs.map(e => [
-      e.timestamp, e.userName, e.userEmail, e.practitioner, e.facility
+      e.timestamp, e.name, e.email, e.practitioner, e.facility
     ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
     const csv = [headers.join(','), ...rows].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -318,6 +341,9 @@ tbody td.timestamp { color: #555; font-size: 10px; }
     URL.revokeObjectURL(url);
   }
 
+  // ── Init ─────────────────────────────────────────────────────
+  loadIdentity();
+  tryAutoFillUser();
   updateBarCount();
 </script>
 </body>
