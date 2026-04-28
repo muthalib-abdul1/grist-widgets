@@ -141,7 +141,6 @@ tbody td.pract { color: #2d6a4f; }
         <thead>
           <tr>
             <th>Facility</th>
-            <th>Practitioner</th>
             <th style="text-align:center">Count</th>
           </tr>
         </thead>
@@ -166,7 +165,6 @@ tbody td.pract { color: #2d6a4f; }
           <tr>
             <th>Facility</th>
             <th>Status</th>
-            <th>Type</th>
           </tr>
         </thead>
         <tbody id="uncovBody"></tbody>
@@ -280,17 +278,12 @@ tbody td.pract { color: #2d6a4f; }
     tbody.innerHTML = '';
 
     duplicates.forEach(d => {
-      // One row per practitioner combo
-      const uniquePracts = [...new Set(d.practs)];
-      uniquePracts.forEach((p, idx) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${idx === 0 ? d.facName : ''}</td>
-          <td class="pract">${p}</td>
-          ${idx === 0 ? `<td class="count" rowspan="${uniquePracts.length}">${d.count}</td>` : ''}
-        `;
-        tbody.appendChild(tr);
-      });
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${d.facName}</td>
+        <td class="count">${d.count}</td>
+      `;
+      tbody.appendChild(tr);
     });
   }
 
@@ -319,7 +312,6 @@ tbody td.pract { color: #2d6a4f; }
       tr.innerHTML = `
         <td>${f.name}</td>
         <td class="status">${f.status}</td>
-        <td class="status">${f.type}</td>
       `;
       tbody.appendChild(tr);
     });
