@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EMR Access Log</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: #f1f0ed;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+/* ── Collapsed bar ── */
+#collapsedBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #1a1916;
+  color: #fff;
+  padding: 10px 16px;
+  cursor: pointer;
+  border-radius: 10px 10px 0 0;
+  user-select: none;
+  transition: background 0.15s;
+}
+#collapsedBar:hover { background: #2d6a4f; }
+.bar-left {
+  display: flex; align-items: center; gap: 8px;
+  font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500;
+}
+.bar-count {
+  background: #2d6a4f; color: #fff;
+  font-size: 10px; font-weight: 600;
+  padding: 1px 6px; border-radius: 10px;
+  font-family: 'DM Mono', monospace;
+}
+.bar-arrow {
+  font-size: 12px; transition: transform 0.2s;
+}
+.bar-arrow.open { transform: rotate(180deg); }
+
+/* ── Expanded panel ── */
+#expandedPanel {
+  display: none;
+  background: #fff;
+  border: 1px solid #e0deda;
+  border-bottom: none;
+  border-radius: 10px 10px 0 0;
+  flex-direction: column;
+  max-height: 420px;
+}
+#expandedPanel.visible { display: flex; }
+
+.panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0eeea;
+  flex-shrink: 0;
+}
+.panel-title {
+  font-size: 13px; font-weight: 600; color: #111;
+  display: flex; align-items: center; gap: 6px;
+}
+.panel-actions { display: flex; gap: 8px; align-items: center; }
+
+.btn-sm {
+  padding: 4px 10px; border-radius: 6px;
+  border: 1.5px solid #e0deda; background: #f8f7f5;
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  font-weight: 500; color: #666; cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-sm:hover { border-color: #b35a0a; color: #b35a0a; background: #fde8d0; }
+.btn-sm.export:hover { border-color: #2d6a4f; color: #2d6a4f; background: #e8f5e9; }
+
+/* ── Access denied ── */
+#accessDenied {
+  display: none;
+  padding: 20px; text-align: center;
+  font-family: 'DM Mono', monospace; font-size: 12px; color: #b35a0a;
+}
+
+/* ── Log table ── */
+.log-wrap {
+  overflow-y: auto; flex: 1;
+}
+table {
+  width: 100%; border-collapse: collapse;
+  font-size: 11px;
+}
+thead th {
+  background: #f8f7f5;
+  padding: 7px 10px;
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  font-weight: 600; color: #888; text-align: left;
+  white-space: nowrap;
+  position: sticky; top: 0;
+  border-bottom: 1px solid #e0deda;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+tbody tr { border-bottom: 1px solid #f5f4f2; }
+tbody tr:hover { background: #fafaf8; }
+tbody td {
+  padding: 6px 10px;
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  color: #444; white-space: nowrap;
+}
+tbody td.user-name { font-weight: 600; color: #111; }
+tbody td.ehr { color: #2d6a4f; }
+tbody td.timestamp { color: #aaa; }
+
+.empty-state {
+  padding: 24px; text-align: center;
+  font-family: 'DM Mono', monospace; font-size: 11px; color: #bbb;
+}
+
+/* ── Live indicator ── */
+.live-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #2d6a4f; display: inline-block;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+</style>
+</head>
+<body>
+
+<div id="expandedPanel">
+  <div class="panel-header">
+    <div class="panel-title">
+      <span class="live-dot"></span>
+      EMR Access Log
+    </div>
+    <div class="panel-actions">
+      <button class="btn-sm export" onclick="exportCSV()">⬇ Export CSV</button>
+      <button class="btn-sm" onclick="clearLog()">🗑 Clear Log</button>
+    </div>
+  </div>
+  <div id="accessDenied">🔒 Owner access required to view this log.</div>
+  <div class="log-wrap" id="logWrap">
+    <div class="empty-state" id="emptyState">No access events logged yet.</div>
+    <table id="logTable" style="display:none">
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>User</th>
+          <th>Email</th>
+          <th>Row ID</th>
+          <th>Username (EMR)</th>
+          <th>EHR System</th>
+          <th>Practitioner</th>
+          <th>Facility</th>
+        </tr>
+      </thead>
+      <tbody id="logBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="collapsedBar" onclick="togglePanel()">
+  <div class="bar-left">
+    🔒 EMR Access Log
+    <span class="bar-count" id="barCount">0</span>
+  </div>
+  <span class="bar-arrow" id="barArrow">▲</span>
+</div>
+
+<script>
+  const STORAGE_KEY = 'emr_access_log_v1';
+  let isOpen = false;
+  let isOwner = false;
+  let currentUser = null;
+
+  grist.ready({ requiredAccess: 'full' });
+
+  // Get user and check access level
+  grist.getUser().then(user => {
+    currentUser = user;
+    // access is 'owners', 'editors', 'viewers' etc.
+    isOwner = user.access === 'owners' || user.isOwner === true;
+  }).catch(() => {
+    // fallback — hide access denied, show log anyway for testing
+    isOwner = false;
+  });
+
+  // Listen for row selection on the EMR_Access table
+  grist.onRecord((record, mappings) => {
+    if (!record || !record.id) return;
+    logAccess(record);
+    updateBarCount();
+  });
+
+  function logAccess(record) {
+    const userName   = currentUser?.name  || currentUser?.Name  || 'Unknown';
+    const userEmail  = currentUser?.email || currentUser?.Email || 'Unknown';
+
+    const entry = {
+      timestamp:   new Date().toLocaleString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      userName,
+      userEmail,
+      rowId:       record.id,
+      emrUsername: record.Username      || record.Username_Value      || '—',
+      ehrSystem:   record.EHR_System    || record.EHR_System_Value    || '—',
+      practitioner:record.Practitioner_Name || record.Practitioner_Name_Value || '—',
+      facility:    Array.isArray(record.Facility_Name)
+                     ? record.Facility_Name.join(', ')
+                     : (record.Facility_Name_Value || record.Facility_Name || '—')
+    };
+
+    const logs = getLogs();
+    logs.unshift(entry); // newest first
+    // Cap at 500 entries
+    if (logs.length > 500) logs.length = 500;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(logs));
+
+    if (isOpen && isOwner) renderTable();
+  }
+
+  function getLogs() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    } catch { return []; }
+  }
+
+  function updateBarCount() {
+    document.getElementById('barCount').textContent = getLogs().length;
+  }
+
+  function renderTable() {
+    const logs = getLogs();
+    const tbody = document.getElementById('logBody');
+    const table = document.getElementById('logTable');
+    const empty = document.getElementById('emptyState');
+
+    if (logs.length === 0) {
+      table.style.display = 'none';
+      empty.style.display = 'block';
+      return;
+    }
+
+    empty.style.display = 'none';
+    table.style.display = 'table';
+    tbody.innerHTML = '';
+
+    logs.forEach(e => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="timestamp">${e.timestamp}</td>
+        <td class="user-name">${e.userName}</td>
+        <td>${e.userEmail}</td>
+        <td>${e.rowId}</td>
+        <td>${e.emrUsername}</td>
+        <td class="ehr">${e.ehrSystem}</td>
+        <td>${e.practitioner}</td>
+        <td>${e.facility}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function togglePanel() {
+    isOpen = !isOpen;
+    const panel = document.getElementById('expandedPanel');
+    const arrow = document.getElementById('barArrow');
+    const denied = document.getElementById('accessDenied');
+    const logWrap = document.getElementById('logWrap');
+
+    panel.classList.toggle('visible', isOpen);
+    arrow.classList.toggle('open', isOpen);
+
+    if (isOpen) {
+      if (!isOwner) {
+        denied.style.display = 'block';
+        logWrap.style.display = 'none';
+      } else {
+        denied.style.display = 'none';
+        logWrap.style.display = 'block';
+        renderTable();
+      }
+    }
+  }
+
+  function clearLog() {
+    if (!confirm('Clear all access log entries?')) return;
+    localStorage.removeItem(STORAGE_KEY);
+    updateBarCount();
+    renderTable();
+  }
+
+  function exportCSV() {
+    const logs = getLogs();
+    if (logs.length === 0) return;
+    const headers = ['Timestamp','User','Email','Row ID','EMR Username','EHR System','Practitioner','Facility'];
+    const rows = logs.map(e => [
+      e.timestamp, e.userName, e.userEmail, e.rowId,
+      e.emrUsername, e.ehrSystem, e.practitioner, e.facility
+    ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(','));
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `emr_access_log_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // Init count on load
+  updateBarCount();
+</script>
+</body>
+</html>
