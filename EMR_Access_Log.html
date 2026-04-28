@@ -12,364 +12,202 @@ body {
   font-family: 'DM Sans', sans-serif;
   background: #f1f0ed;
   min-height: 100vh;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  gap: 12px;
 }
 
-#collapsedBar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: #1a1916;
-  color: #fff;
-  padding: 10px 16px;
-  cursor: pointer;
-  border-radius: 10px 10px 0 0;
-  user-select: none;
-  transition: background 0.15s;
-}
-#collapsedBar:hover { background: #2d6a4f; }
-.bar-left {
-  display: flex; align-items: center; gap: 8px;
-  font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500;
-}
-.bar-count {
-  background: #2d6a4f; color: #fff;
-  font-size: 10px; font-weight: 600;
-  padding: 1px 6px; border-radius: 10px;
-  font-family: 'DM Mono', monospace;
-}
-.bar-arrow { font-size: 12px; transition: transform 0.2s; }
-.bar-arrow.open { transform: rotate(180deg); }
-
-#expandedPanel {
-  display: none;
-  background: #fff;
-  border: 1px solid #e0deda;
-  border-bottom: none;
-  border-radius: 10px 10px 0 0;
-  flex-direction: column;
-  max-height: 460px;
-}
-#expandedPanel.visible { display: flex; }
-
-.panel-header {
+.header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid #f0eeea;
-  flex-shrink: 0;
 }
-.panel-title {
+.title {
   font-size: 13px; font-weight: 600; color: #111;
-  display: flex; align-items: center; gap: 6px;
+  display: flex; align-items: center; gap: 8px;
 }
-.panel-actions { display: flex; gap: 8px; align-items: center; }
-.btn-sm {
-  padding: 4px 10px; border-radius: 6px;
-  border: 1.5px solid #e0deda; background: #f8f7f5;
+.count-badge {
+  background: #1a1916; color: #fff;
   font-family: 'DM Mono', monospace; font-size: 10px;
-  font-weight: 500; color: #333; cursor: pointer;
+  font-weight: 500; padding: 2px 7px; border-radius: 10px;
+}
+.actions { display: flex; gap: 8px; }
+.btn-sm {
+  padding: 4px 12px; border-radius: 6px;
+  border: 1.5px solid #e0deda; background: #fff;
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  font-weight: 500; color: #444; cursor: pointer;
   transition: all 0.15s;
 }
 .btn-sm:hover { border-color: #b35a0a; color: #b35a0a; background: #fde8d0; }
+.btn-sm.export { }
 .btn-sm.export:hover { border-color: #2d6a4f; color: #2d6a4f; background: #e8f5e9; }
 
-.status-bar {
-  padding: 5px 14px;
-  background: #f8f7f5;
-  font-family: 'DM Mono', monospace; font-size: 10px; color: #888;
-  border-bottom: 1px solid #ece9e4;
-  flex-shrink: 0;
+.table-wrap {
+  border-radius: 10px; border: 1px solid #e0deda;
+  background: #fff; overflow: hidden; overflow-x: auto;
+  flex: 1;
 }
-.status-bar.ok    { background: #f0f7f4; color: #2d6a4f; }
-.status-bar.error { background: #fde8d0; color: #b35a0a; }
-
-.log-wrap { overflow-y: auto; flex: 1; }
-
 table { width: 100%; border-collapse: collapse; }
 thead th {
-  background: #f8f7f5;
-  padding: 7px 12px;
+  background: #1a1916; color: #fff;
+  padding: 8px 12px;
   font-family: 'DM Mono', monospace; font-size: 10px;
-  font-weight: 700; color: #111; text-align: left;
-  white-space: nowrap;
+  font-weight: 500; text-align: left;
+  white-space: nowrap; letter-spacing: 0.04em;
   position: sticky; top: 0;
-  border-bottom: 1px solid #e0deda;
-  text-transform: uppercase; letter-spacing: 0.05em;
 }
-tbody tr { border-bottom: 1px solid #f5f4f2; }
+tbody tr { border-bottom: 1px solid #f0eeea; }
+tbody tr:last-child { border-bottom: none; }
 tbody tr:hover { background: #fafaf8; }
 tbody td {
-  padding: 6px 12px;
-  font-family: 'DM Mono', monospace; font-size: 11px;
+  padding: 7px 12px;
+  font-family: 'DM Mono', monospace; font-size: 10px;
   color: #111; white-space: nowrap;
 }
-tbody td.ts { color: #555; font-size: 10px; }
+tbody td.ts { color: #666; font-size: 9px; }
 
-.empty-state {
-  padding: 24px; text-align: center;
+.empty {
+  padding: 32px; text-align: center;
   font-family: 'DM Mono', monospace; font-size: 11px; color: #bbb;
+}
+.loading {
+  padding: 20px; text-align: center;
+  font-family: 'DM Mono', monospace; font-size: 11px; color: #aaa;
 }
 .live-dot {
   width: 7px; height: 7px; border-radius: 50%;
   background: #2d6a4f; display: inline-block;
   animation: pulse 2s infinite;
 }
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
-}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
 </style>
 </head>
 <body>
 
-<div id="expandedPanel">
-  <div class="panel-header">
-    <div class="panel-title">
-      <span class="live-dot"></span>
-      EMR Access Log
-    </div>
-    <div class="panel-actions">
-      <button class="btn-sm export" onclick="exportCSV()">⬇ Export CSV</button>
-      <button class="btn-sm" onclick="clearLog()">🗑 Clear Log</button>
-    </div>
+<div class="header">
+  <div class="title">
+    <span class="live-dot"></span>
+    EMR Access Log
+    <span class="count-badge" id="countBadge">—</span>
   </div>
-  <div class="status-bar" id="statusBar">Initialising…</div>
-  <div class="log-wrap">
-    <div class="empty-state" id="emptyState">No access events logged yet.</div>
-    <table id="logTable" style="display:none">
-      <thead>
-        <tr>
-          <th>Timestamp</th>
-          <th>User Name</th>
-          <th>Email</th>
-          <th>Practitioner</th>
-          <th>Facility</th>
-        </tr>
-      </thead>
-      <tbody id="logBody"></tbody>
-    </table>
+  <div class="actions">
+    <button class="btn-sm export" onclick="exportCSV()">⬇ Export CSV</button>
+    <button class="btn-sm" onclick="clearLog()">🗑 Clear</button>
   </div>
 </div>
 
-<div id="collapsedBar" onclick="togglePanel()">
-  <div class="bar-left">
-    🔒 EMR Access Log
-    <span class="bar-count" id="barCount">0</span>
-  </div>
-  <span class="bar-arrow" id="barArrow">▲</span>
+<div class="table-wrap">
+  <div class="loading" id="loadingMsg">Loading…</div>
+  <table id="logTable" style="display:none">
+    <thead>
+      <tr>
+        <th>Timestamp</th>
+        <th>User Name</th>
+        <th>Email</th>
+        <th>Practitioner</th>
+        <th>Facility</th>
+      </tr>
+    </thead>
+    <tbody id="logBody"></tbody>
+  </table>
 </div>
 
 <script>
-  let isOpen        = false;
-  let userName      = 'Unknown';
-  let userEmail     = 'Unknown';
-  let lastRowId     = null;
-  let debounceTimer = null;
-  let totalCount    = 0;
-  const DEBOUNCE_MS = 1500; // wait 1.5s after cursor settles before logging
-
   grist.ready({ requiredAccess: 'full' });
 
-  // ── Step 1: resolve user, then start listening ───────────────
-  async function init() {
-    // Try grist.getUser() — may or may not return data
-    try {
-      if (typeof grist.getUser === 'function') {
-        const u = await grist.getUser();
-        if (u) {
-          userName  = u.name  || u.Name  || u.fullName  || u.email || u.Email || 'Unknown';
-          userEmail = u.email || u.Email || u.loginEmail || 'Unknown';
-        }
-      }
-    } catch(e) {}
+  // Auto-refresh whenever any record changes in the doc
+  grist.onRecords(() => loadLog());
 
-    setStatus(`Ready — logging as: ${userName} (${userEmail})`);
-    loadCount();
-
-    // ── Step 2: listen for row selections ────────────────────
-    grist.onRecord((record) => {
-      if (!record || !record.id) return;
-      // DEBUG — show all fields on status bar so we know what comes through
-      setStatus('RAW keys: ' + Object.keys(record).join(', '));
-      console.log('onRecord full record:', JSON.stringify(record));
-      // Skip if same row as last logged entry
-      if (record.id === lastRowId) return;
-      clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(async () => {
-        if (record.id === lastRowId) return;
-        lastRowId = record.id;
-        await logToGrist(record);
-      }, DEBOUNCE_MS);
-    });
-  }
-
-  init();
-
-  // ── Write entry to EMR_Access_Log table ──────────────────────
-  async function logToGrist(record) {
-    const timestamp = new Date().toLocaleString('en-US', {
-      month: '2-digit', day: '2-digit', year: 'numeric',
-      hour: '2-digit', minute: '2-digit', second: '2-digit'
-    });
-
-    // Reference fields come through as IDs — use column mappings or
-    // check every possible variation Grist might send
-    const practitioner = record.Practitioner_Name_Value
-                      || record.gristHelper_Display
-                      || record.Practitioner_Name_Value2
-                      || (typeof record.Practitioner_Name === 'string' ? record.Practitioner_Name : '')
-                      || '';
-
-    const rawFacility  = record.Facility_Name_Value
-                      || record.Facility_Name_Value2;
-    const facilityStr  = Array.isArray(rawFacility)
-                           ? rawFacility.filter(Boolean).join(', ')
-                           : (typeof rawFacility === 'string' ? rawFacility : '');
-
-    // Also try Username as signal that this is a real EMR row
-    const hasContent = practitioner || facilityStr || record.Username || record.EHR_System;
-    if (!hasContent) return;
-
-    const facility = facilityStr || '—';
-
-    try {
-      await grist.docApi.applyUserActions([
-        ['AddRecord', 'EMR_Access_Log', null, {
-          Practitioner: String(practitioner),
-          Facility:     facilityStr || '—',
-          Row_ID:       record.id
-        }]
-      ]);
-      totalCount++;
-      document.getElementById('barCount').textContent = totalCount;
-      setStatus(`✓ Logged — ${practitioner} @ ${facility}`, 'ok');
-    } catch(e) {
-      setStatus(`Write error: ${e.message}`, 'error');
-    }
-  }
-
-  // ── Load count from Grist table ──────────────────────────────
-  async function loadCount() {
+  async function loadLog() {
     try {
       const t = await grist.docApi.fetchTable('EMR_Access_Log');
-      totalCount = t.id ? t.id.length : 0;
-      document.getElementById('barCount').textContent = totalCount;
-      if (isOpen) renderTable(t);
-    } catch(e) {}
-  }
+      const tbody  = document.getElementById('logBody');
+      const table  = document.getElementById('logTable');
+      const loading = document.getElementById('loadingMsg');
+      const badge  = document.getElementById('countBadge');
 
-  // ── Format Grist timestamp (Unix seconds or string) ─────────────
-  function formatTs(val) {
-    if (!val) return '—';
-    // If it is a number (Unix epoch seconds from Grist NOW())
-    if (typeof val === 'number') {
-      return new Date(val * 1000).toLocaleString('en-US', {
-        month: '2-digit', day: '2-digit', year: 'numeric',
-        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      loading.style.display = 'none';
+
+      if (!t.id || t.id.length === 0) {
+        table.style.display = 'none';
+        loading.textContent = 'No access events logged yet.';
+        loading.style.display = 'block';
+        badge.textContent = '0';
+        return;
+      }
+
+      badge.textContent = t.id.length;
+      table.style.display = 'table';
+      tbody.innerHTML = '';
+
+      const indices = [...Array(t.id.length).keys()].reverse();
+      indices.forEach(i => {
+        const ts = t.Timestamp?.[i];
+        const formatted = typeof ts === 'number'
+          ? new Date(ts * 1000).toLocaleString('en-US', {
+              month:'2-digit', day:'2-digit', year:'numeric',
+              hour:'2-digit', minute:'2-digit', second:'2-digit'
+            })
+          : (ts || '—');
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="ts">${formatted}</td>
+          <td>${t.User_Name?.[i]    || '—'}</td>
+          <td>${t.User_Email?.[i]   || '—'}</td>
+          <td>${t.Practitioner?.[i] || '—'}</td>
+          <td>${t.Facility?.[i]     || '—'}</td>
+        `;
+        tbody.appendChild(tr);
       });
+    } catch(e) {
+      document.getElementById('loadingMsg').textContent = 'Error: ' + e.message;
+      document.getElementById('loadingMsg').style.display = 'block';
     }
-    // Already a string (written by older widget version)
-    return val;
-  }
-
-  // ── Render log from Grist table ──────────────────────────────
-  async function renderTable(data) {
-    let t = data;
-    if (!t) {
-      try { t = await grist.docApi.fetchTable('EMR_Access_Log'); }
-      catch(e) { setStatus('Could not load log: ' + e.message, 'error'); return; }
-    }
-
-    const tbody = document.getElementById('logBody');
-    const table = document.getElementById('logTable');
-    const empty = document.getElementById('emptyState');
-
-    if (!t.id || t.id.length === 0) {
-      table.style.display = 'none';
-      empty.style.display = 'block';
-      return;
-    }
-
-    empty.style.display = 'none';
-    table.style.display = 'table';
-    tbody.innerHTML = '';
-
-    // Reverse so newest first
-    const indices = [...Array(t.id.length).keys()].reverse();
-    indices.forEach(i => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td class="ts">${formatTs(t.Timestamp?.[i])}</td>
-        <td>${t.User_Name?.[i]  || '—'}</td>
-        <td>${t.User_Email?.[i] || '—'}</td>
-        <td>${t.Practitioner?.[i] || '—'}</td>
-        <td>${t.Facility?.[i]   || '—'}</td>
-      `;
-      tbody.appendChild(tr);
-    });
-  }
-
-  function setStatus(msg, type = '') {
-    const el = document.getElementById('statusBar');
-    el.textContent = msg;
-    el.className = 'status-bar ' + type;
-  }
-
-  async function togglePanel() {
-    isOpen = !isOpen;
-    document.getElementById('expandedPanel').classList.toggle('visible', isOpen);
-    document.getElementById('barArrow').classList.toggle('open', isOpen);
-    if (isOpen) await renderTable();
   }
 
   async function clearLog() {
-    if (!confirm('Delete all EMR access log entries from the Grist table?')) return;
+    if (!confirm('Delete all log entries from the Grist table?')) return;
     try {
       const t = await grist.docApi.fetchTable('EMR_Access_Log');
       if (t.id && t.id.length > 0) {
-        const deleteActions = t.id.map(id => ['RemoveRecord', 'EMR_Access_Log', id]);
-        // Batch deletes in groups of 50
-        for (let i = 0; i < deleteActions.length; i += 50) {
-          await grist.docApi.applyUserActions(deleteActions.slice(i, i + 50));
+        for (let i = 0; i < t.id.length; i += 50) {
+          await grist.docApi.applyUserActions(
+            t.id.slice(i, i+50).map(id => ['RemoveRecord', 'EMR_Access_Log', id])
+          );
         }
       }
-      totalCount = 0;
-      document.getElementById('barCount').textContent = 0;
-      renderTable({ id: [] });
-      setStatus('Log cleared', 'ok');
-    } catch(e) {
-      setStatus('Clear error: ' + e.message, 'error');
-    }
+      loadLog();
+    } catch(e) { alert('Error: ' + e.message); }
   }
 
   async function exportCSV() {
     try {
       const t = await grist.docApi.fetchTable('EMR_Access_Log');
-      if (!t.id || t.id.length === 0) return;
-      const headers = ['Timestamp', 'User Name', 'Email', 'Practitioner', 'Facility', 'Row ID'];
+      if (!t.id || !t.id.length) return;
+      const headers = ['Timestamp','User Name','Email','Practitioner','Facility'];
       const indices = [...Array(t.id.length).keys()].reverse();
-      const rows = indices.map(i => [
-        formatTs(t.Timestamp?.[i]),
-        t.User_Name?.[i]   || '',
-        t.User_Email?.[i]  || '',
-        t.Practitioner?.[i] || '',
-        t.Facility?.[i]    || '',
-        t.Row_ID?.[i]      || ''
-      ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
+      const rows = indices.map(i => {
+        const ts = t.Timestamp?.[i];
+        const formatted = typeof ts === 'number'
+          ? new Date(ts * 1000).toLocaleString('en-US') : (ts || '');
+        return [
+          formatted,
+          t.User_Name?.[i]    || '',
+          t.User_Email?.[i]   || '',
+          t.Practitioner?.[i] || '',
+          t.Facility?.[i]     || ''
+        ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(',');
+      });
       const csv = [headers.join(','), ...rows].join('\n');
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
+      a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
       a.download = `emr_access_log_${new Date().toISOString().split('T')[0]}.csv`;
       a.click();
-      URL.revokeObjectURL(url);
-    } catch(e) {
-      setStatus('Export error: ' + e.message, 'error');
-    }
+    } catch(e) { alert('Export error: ' + e.message); }
   }
+
+  loadLog();
 </script>
 </body>
 </html>
