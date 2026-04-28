@@ -170,21 +170,45 @@ body {
       return;
     }
 
+    // ── Duplicate check ──────────────────────────────────────────
+    clearLog();
+    addLog('Checking for duplicates in Weekly Coverage Schedule…', 'info');
+    try {
+      const coverage = await grist.docApi.fetchTable('Weekly_Coverage_Schedule');
+      const duplicates = [];
+      for (let i = 0; i < coverage.id.length; i++) {
+        const dupeFlag = coverage.Duplicate_Check ? coverage.Duplicate_Check[i] : false;
+        if (dupeFlag) {
+          const pName = coverage.Practitioner_Name_Value?.[i] || coverage.Practitioner_Name?.[i] || 'Unknown';
+          const fName = coverage.Facility_Name_Value?.[i]     || coverage.Facility_Name?.[i]     || 'Unknown';
+          duplicates.push(`${pName} @ ${fName}`);
+        }
+      }
+      if (duplicates.length > 0) {
+        addLog('🚫 Duplicates found — fix before generating:', 'error');
+        [...new Set(duplicates)].forEach(d => addLog(`  ↳ ${d}`, 'error'));
+        return;
+      }
+      addLog('✓ No duplicates found', 'success');
+    } catch(e) {
+      addLog(`⚠ Could not verify duplicates: ${e.message}`, 'error');
+      return;
+    }
+    // ─────────────────────────────────────────────────────────────
+
     const weekLabel = `Week ${weekNum} - ${formatDate(weekDate)}`;
     const btn = document.getElementById('generateBtn');
     btn.disabled = true;
     btn.textContent = 'Working…';
-    clearLog();
 
     try {
-      // Step 1: Add week to Weekly_Check_Ins
+      // Step 1: Add week to Weeks_Table
       addLog(`Creating week: ${weekLabel}`, 'info');
       const weekResult = await grist.docApi.applyUserActions([
         ['AddRecord', 'Weeks_Table', null, { Week: weekLabel }]
       ]);
-      // Handle different possible result structures
-      const weekId = weekResult.rowIds?.[0] 
-        || weekResult.retValues?.[0] 
+      const weekId = weekResult.rowIds?.[0]
+        || weekResult.retValues?.[0]
         || (Array.isArray(weekResult) ? weekResult[0] : null)
         || weekResult;
       addLog(`Result structure: ${JSON.stringify(weekResult)}`, 'info');
@@ -204,20 +228,19 @@ body {
       let created = 0;
       const actions = [];
 
-      // Debug: log first few coverage type values
       addLog(`Sample Coverage_Type values: ${JSON.stringify(covRecords.Coverage_Type.slice(0,5))}`, 'info');
 
       for (let i = 0; i < covRecords.id.length; i++) {
         const startDate = covRecords.Start_Date[i];
         const endDate = covRecords.End_Date[i];
-      
+
         const start = startDate ? new Date(startDate * 1000) : null;
         const end = endDate ? new Date(endDate * 1000) : null;
-      
+
         const isActive = start &&
           start <= weekEndDate &&
           (!end || end >= weekStartDate);
-      
+
         if (isActive) {
           actions.push(['AddRecord', 'Week_List', null, {
             Week: weekId,
