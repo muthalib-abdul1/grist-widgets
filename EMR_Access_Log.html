@@ -215,11 +215,14 @@ tbody td.ts { color: #555; font-size: 10px; }
 
     const practitioner = record.Practitioner_Name_Value
                       || record.Practitioner_Name
-                      || '—';
+                      || '';
     const rawFacility  = record.Facility_Name_Value || record.Facility_Name;
     const facility     = Array.isArray(rawFacility)
                            ? rawFacility.join(', ')
-                           : (rawFacility || '—');
+                           : (rawFacility || '');
+
+    // Skip blank rows — only log if at least practitioner is present
+    if (!practitioner && !facility) return;
 
     try {
       await grist.docApi.applyUserActions([
