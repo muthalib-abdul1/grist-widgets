@@ -239,6 +239,20 @@ tbody td.ts { color: #555; font-size: 10px; }
     } catch(e) {}
   }
 
+  // ── Format Grist timestamp (Unix seconds or string) ─────────────
+  function formatTs(val) {
+    if (!val) return '—';
+    // If it is a number (Unix epoch seconds from Grist NOW())
+    if (typeof val === 'number') {
+      return new Date(val * 1000).toLocaleString('en-US', {
+        month: '2-digit', day: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      });
+    }
+    // Already a string (written by older widget version)
+    return val;
+  }
+
   // ── Render log from Grist table ──────────────────────────────
   async function renderTable(data) {
     let t = data;
@@ -266,7 +280,7 @@ tbody td.ts { color: #555; font-size: 10px; }
     indices.forEach(i => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td class="ts">${t.Timestamp?.[i]   || '—'}</td>
+        <td class="ts">${formatTs(t.Timestamp?.[i])}</td>
         <td>${t.User_Name?.[i]  || '—'}</td>
         <td>${t.User_Email?.[i] || '—'}</td>
         <td>${t.Practitioner?.[i] || '—'}</td>
@@ -316,7 +330,7 @@ tbody td.ts { color: #555; font-size: 10px; }
       const headers = ['Timestamp', 'User Name', 'Email', 'Practitioner', 'Facility', 'Row ID'];
       const indices = [...Array(t.id.length).keys()].reverse();
       const rows = indices.map(i => [
-        t.Timestamp?.[i]   || '',
+        formatTs(t.Timestamp?.[i]),
         t.User_Name?.[i]   || '',
         t.User_Email?.[i]  || '',
         t.Practitioner?.[i] || '',
