@@ -402,19 +402,27 @@ body {
             link.style.cssText = 'font-family:DM Mono,monospace;font-size:11px;color:#2d6a4f;word-break:break-all;';
             div.appendChild(link);
           };
-          // Show scan button instead of inline image (avoids CORS issues)
-          const scanBtn = document.createElement('button');
-          scanBtn.textContent = '📷 Tap to Scan QR Code';
-          scanBtn.style.cssText = 'margin-top:6px;padding:7px 14px;border-radius:7px;border:1.5px solid #2d6a4f;background:#f0f7f4;color:#2d6a4f;font-family:DM Mono,monospace;font-size:11px;font-weight:600;cursor:pointer;width:100%;';
-          scanBtn.onclick = () => openQR(qrVal);
-
-          // Also try loading inline - if it works, show it
+          // Show image directly — CORS now enabled on Azure
           img.src = qrVal;
           img.crossOrigin = 'anonymous';
-          img.style.cssText = 'max-width:160px;max-height:160px;border-radius:6px;margin-top:6px;display:none;cursor:pointer;';
-          img.onload = () => { img.style.display = 'block'; scanBtn.style.display = 'none'; img.onclick = () => openQR(qrVal); };
-          div.appendChild(scanBtn);
+          img.style.cssText = 'max-width:200px;max-height:200px;border-radius:8px;margin-top:6px;display:block;cursor:pointer;';
+          img.title = 'Click to enlarge';
+          img.onclick = () => openQR(qrVal);
+
+          // Fallback link if image still fails to load
+          const fallbackLink = document.createElement('a');
+          fallbackLink.href = qrVal;
+          fallbackLink.target = '_blank';
+          fallbackLink.textContent = 'Open QR Code ↗';
+          fallbackLink.style.cssText = 'display:none;font-family:DM Mono,monospace;font-size:11px;color:#2d6a4f;margin-top:4px;';
+
+          img.onerror = () => {
+            img.style.display = 'none';
+            fallbackLink.style.display = 'block';
+          };
+
           div.appendChild(img);
+          div.appendChild(fallbackLink);
         }
       } else {
         val.textContent = f.value;
