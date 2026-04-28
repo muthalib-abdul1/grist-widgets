@@ -162,11 +162,13 @@ tbody td.ts { color: #555; font-size: 10px; }
 </div>
 
 <script>
-  let isOpen      = false;
-  let userName    = 'Unknown';
-  let userEmail   = 'Unknown';
-  let lastRowId   = null;
-  let totalCount  = 0;
+  let isOpen        = false;
+  let userName      = 'Unknown';
+  let userEmail     = 'Unknown';
+  let lastRowId     = null;
+  let debounceTimer = null;
+  let totalCount    = 0;
+  const DEBOUNCE_MS = 1500; // wait 1.5s after cursor settles before logging
 
   grist.ready({ requiredAccess: 'full' });
 
@@ -187,12 +189,18 @@ tbody td.ts { color: #555; font-size: 10px; }
     loadCount();
 
     // ── Step 2: listen for row selections ────────────────────
-    grist.onRecord(async (record) => {
+    grist.onRecord((record) => {
       if (!record || !record.id) return;
-      // Debounce — don't log the same row twice in a row
+      // Skip if same row as last logged entry
       if (record.id === lastRowId) return;
-      lastRowId = record.id;
-      await logToGrist(record);
+      // Debounce — wait for cursor to settle before logging
+      // Prevents logging intermediate rows when scrolling/navigating
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(async () => {
+        if (record.id === lastRowId) return;
+        lastRowId = record.id;
+        await logToGrist(record);
+      }, DEBOUNCE_MS);
     });
   }
 
