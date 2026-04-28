@@ -187,10 +187,20 @@ tbody td.timestamp { color: #aaa; }
   // Get user and check access level
   grist.getUser().then(user => {
     currentUser = user;
-    // access is 'owners', 'editors', 'viewers' etc.
-    isOwner = user.access === 'owners' || user.isOwner === true;
-  }).catch(() => {
-    // fallback — hide access denied, show log anyway for testing
+    // Debug: log the full user object so we can see what fields are available
+    console.log('Grist user object:', JSON.stringify(user));
+    // Broad owner check covering different possible field names/values
+    const access = (user.access || '').toLowerCase();
+    isOwner = access === 'owners'
+           || access === 'owner'
+           || access === 'full'
+           || user.isOwner === true
+           || user.IsOwner === true
+           || (user.email || '').toLowerCase() === 'mabdul@idsolns.com'
+           || (user.Email || '').toLowerCase() === 'mabdul@idsolns.com';
+    console.log('isOwner:', isOwner, '| access field:', user.access);
+  }).catch((e) => {
+    console.error('getUser error:', e);
     isOwner = false;
   });
 
