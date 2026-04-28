@@ -402,27 +402,25 @@ body {
             link.style.cssText = 'font-family:DM Mono,monospace;font-size:11px;color:#2d6a4f;word-break:break-all;';
             div.appendChild(link);
           };
-          // Show image directly — CORS now enabled on Azure
+          // Use iframe to bypass CORS — works for any publicly accessible URL
+          const iframe = document.createElement('iframe');
+          iframe.src = qrVal;
+          iframe.style.cssText = 'width:200px;height:200px;border:none;border-radius:8px;margin-top:6px;display:block;cursor:pointer;background:#fff;';
+          iframe.scrolling = 'no';
+          iframe.title = 'QR Code';
+          iframe.onclick = () => openQR(qrVal);
+
+          // Also show a plain img tag as primary — iframe as backup
           img.src = qrVal;
-          img.crossOrigin = 'anonymous';
           img.style.cssText = 'max-width:200px;max-height:200px;border-radius:8px;margin-top:6px;display:block;cursor:pointer;';
           img.title = 'Click to enlarge';
           img.onclick = () => openQR(qrVal);
-
-          // Fallback link if image still fails to load
-          const fallbackLink = document.createElement('a');
-          fallbackLink.href = qrVal;
-          fallbackLink.target = '_blank';
-          fallbackLink.textContent = 'Open QR Code ↗';
-          fallbackLink.style.cssText = 'display:none;font-family:DM Mono,monospace;font-size:11px;color:#2d6a4f;margin-top:4px;';
-
           img.onerror = () => {
             img.style.display = 'none';
-            fallbackLink.style.display = 'block';
+            div.appendChild(iframe);
           };
 
           div.appendChild(img);
-          div.appendChild(fallbackLink);
         }
       } else {
         val.textContent = f.value;
