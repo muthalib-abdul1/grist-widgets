@@ -341,24 +341,33 @@ body {
       lbl.textContent = f.label;
 
       const val = document.createElement('div');
-      val.className = 'detail-value' + (f.isPassword ? ' redacted' : '');
+      val.className = 'detail-value';
 
-      if (f.isQR && f.value) {
-        // Render QR as image if it's a URL or base64, otherwise as text
-        div.appendChild(lbl);
-        if (f.value.startsWith('http') || f.value.startsWith('data:')) {
-          const img = document.createElement('img');
-          img.src = f.value;
-          img.style.cssText = 'max-width:120px;max-height:120px;border-radius:6px;margin-top:4px;';
-          div.appendChild(img);
-        } else if (f.value && f.value !== '—') {
-          val.textContent = f.value;
-          div.appendChild(val);
-        } else {
+      if (f.isQR) {
+        const qrVal = f.value || '';
+        // Skip if empty, placeholder, or just a number (not a real URL)
+        if (!qrVal || qrVal === '—' || !isNaN(Number(qrVal))) {
           div.style.display = 'none';
+        } else {
+          div.appendChild(lbl);
+          // Try rendering as image regardless of prefix
+          const img = document.createElement('img');
+          img.alt = 'QR Code';
+          img.style.cssText = 'max-width:160px;max-height:160px;border-radius:6px;margin-top:4px;display:block;';
+          img.onerror = () => {
+            // If image fails, show as text/link
+            img.style.display = 'none';
+            const link = document.createElement('a');
+            link.href = qrVal;
+            link.target = '_blank';
+            link.textContent = qrVal.length > 60 ? qrVal.substring(0,60) + '…' : qrVal;
+            link.style.cssText = 'font-family:DM Mono,monospace;font-size:11px;color:#2d6a4f;word-break:break-all;';
+            div.appendChild(link);
+          };
+          img.src = qrVal;
+          img.crossOrigin = 'anonymous';
+          div.appendChild(img);
         }
-      } else if (f.isQR && !f.value) {
-        div.style.display = 'none';
       } else {
         val.textContent = f.value;
         div.appendChild(lbl);
