@@ -216,12 +216,9 @@ tbody td.ts { color: #555; font-size: 10px; }
     try {
       await grist.docApi.applyUserActions([
         ['AddRecord', 'EMR_Access_Log', null, {
-          Timestamp:   timestamp,
-          User_Name:   userName,
-          User_Email:  userEmail,
           Practitioner: String(practitioner),
-          Facility:    String(facility),
-          Row_ID:      record.id
+          Facility:     String(facility),
+          Row_ID:       record.id
         }]
       ]);
       totalCount++;
