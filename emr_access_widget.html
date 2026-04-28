@@ -402,25 +402,29 @@ body {
             link.style.cssText = 'font-family:DM Mono,monospace;font-size:11px;color:#2d6a4f;word-break:break-all;';
             div.appendChild(link);
           };
-          // Use iframe to bypass CORS — works for any publicly accessible URL
-          const iframe = document.createElement('iframe');
-          iframe.src = qrVal;
-          iframe.style.cssText = 'width:200px;height:200px;border:none;border-radius:8px;margin-top:6px;display:block;cursor:pointer;background:#fff;';
-          iframe.scrolling = 'no';
-          iframe.title = 'QR Code';
-          iframe.onclick = () => openQR(qrVal);
-
-          // Also show a plain img tag as primary — iframe as backup
-          img.src = qrVal;
           img.style.cssText = 'max-width:200px;max-height:200px;border-radius:8px;margin-top:6px;display:block;cursor:pointer;';
           img.title = 'Click to enlarge';
           img.onclick = () => openQR(qrVal);
-          img.onerror = () => {
-            img.style.display = 'none';
-            div.appendChild(iframe);
-          };
 
-          div.appendChild(img);
+          // Fetch as blob to avoid CORS/CSP issues with direct img src
+          fetch(qrVal)
+            .then(r => {
+              if (!r.ok) throw new Error('fetch failed');
+              return r.blob();
+            })
+            .then(blob => {
+              img.src = URL.createObjectURL(blob);
+              div.appendChild(img);
+            })
+            .catch(() => {
+              // Final fallback — open link
+              const link = document.createElement('a');
+              link.href = qrVal;
+              link.target = '_blank';
+              link.textContent = '📷 Open QR Code ↗';
+              link.style.cssText = 'font-family:DM Mono,monospace;font-size:11px;color:#2d6a4f;margin-top:4px;display:block;';
+              div.appendChild(link);
+            });
         }
       } else {
         val.textContent = f.value;
