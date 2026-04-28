@@ -125,6 +125,7 @@ tbody td:first-child {
 <script>
   let summaryRows = [];
   let activeCC = null;
+  let isRefreshing = false;
 
   grist.ready({ requiredAccess: 'full' });
 
@@ -134,14 +135,22 @@ tbody td:first-child {
     await refreshData();
   });
 
+  grist.onRecord(async () => {
+    await refreshData();
+  });
+
   async function refreshData() {
+    if (isRefreshing) return;
+    isRefreshing = true;
     try {
-      document.getElementById('loading').style.display = 'block';
-      document.getElementById('pivotTable').style.display = 'none';
       const wl = await grist.docApi.fetchTable('Week_List');
       await buildTable(wl);
     } catch(e) {
       document.getElementById('loading').textContent = 'Error: ' + e.message;
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('pivotTable').style.display = 'none';
+    } finally {
+      isRefreshing = false;
     }
   }
 
@@ -180,6 +189,8 @@ tbody td:first-child {
   async function buildTable(wl) {
     if (!wl || !wl.id || wl.id.length === 0) {
       document.getElementById('loading').textContent = 'No data found.';
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('pivotTable').style.display = 'none';
       return;
     }
 
@@ -211,6 +222,8 @@ tbody td:first-child {
 
     if (weeks.length === 0 || coordinators.length === 0) {
       document.getElementById('loading').textContent = 'Could not build table.';
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('pivotTable').style.display = 'none';
       return;
     }
 
