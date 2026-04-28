@@ -178,14 +178,21 @@ tbody td.timestamp { color: #aaa; }
   try {
     grist.getUser().then(user => {
       if (user) {
+        // Dump raw object so we can see exact field names
+        setDebug(`Raw user: ${JSON.stringify(user)}`);
+        // Try every known variation of name/email fields
+        const name  = user.name  || user.Name  || user.fullName  || user.FullName  || user.displayName || '';
+        const email = user.email || user.Email || user.loginEmail || user.LoginEmail || '';
         currentUser = {
-          name:  user.Name  || user.name  || user.fullName || 'Unknown',
-          email: user.Email || user.email || 'Unknown'
+          name:  name  || email || 'Unknown',
+          email: email || 'Unknown'
         };
         setDebug(`User loaded: ${currentUser.name} (${currentUser.email})`);
+      } else {
+        setDebug('getUser returned null/undefined');
       }
     }).catch(e => {
-      setDebug(`getUser failed: ${e.message} — logging with Unknown user`);
+      setDebug(`getUser failed: ${e.message}`);
     });
   } catch(e) {
     setDebug(`getUser error: ${e.message}`);
