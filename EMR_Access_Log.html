@@ -18,7 +18,6 @@ body {
   justify-content: flex-end;
 }
 
-/* ── Collapsed bar ── */
 #collapsedBar {
   display: flex;
   align-items: center;
@@ -42,12 +41,9 @@ body {
   padding: 1px 6px; border-radius: 10px;
   font-family: 'DM Mono', monospace;
 }
-.bar-arrow {
-  font-size: 12px; transition: transform 0.2s;
-}
+.bar-arrow { font-size: 12px; transition: transform 0.2s; }
 .bar-arrow.open { transform: rotate(180deg); }
 
-/* ── Expanded panel ── */
 #expandedPanel {
   display: none;
   background: #fff;
@@ -81,21 +77,17 @@ body {
 .btn-sm:hover { border-color: #b35a0a; color: #b35a0a; background: #fde8d0; }
 .btn-sm.export:hover { border-color: #2d6a4f; color: #2d6a4f; background: #e8f5e9; }
 
-/* ── Access denied ── */
-#accessDenied {
-  display: none;
-  padding: 20px; text-align: center;
-  font-family: 'DM Mono', monospace; font-size: 12px; color: #b35a0a;
+.log-wrap { overflow-y: auto; flex: 1; }
+
+.debug-bar {
+  padding: 6px 12px;
+  background: #e8f0fe;
+  font-family: 'DM Mono', monospace; font-size: 10px; color: #1a56db;
+  border-bottom: 1px solid #d0ddf5;
+  flex-shrink: 0;
 }
 
-/* ── Log table ── */
-.log-wrap {
-  overflow-y: auto; flex: 1;
-}
-table {
-  width: 100%; border-collapse: collapse;
-  font-size: 11px;
-}
+table { width: 100%; border-collapse: collapse; font-size: 11px; }
 thead th {
   background: #f8f7f5;
   padding: 7px 10px;
@@ -122,7 +114,6 @@ tbody td.timestamp { color: #aaa; }
   font-family: 'DM Mono', monospace; font-size: 11px; color: #bbb;
 }
 
-/* ── Live indicator ── */
 .live-dot {
   width: 7px; height: 7px; border-radius: 50%;
   background: #2d6a4f; display: inline-block;
@@ -147,7 +138,7 @@ tbody td.timestamp { color: #aaa; }
       <button class="btn-sm" onclick="clearLog()">🗑 Clear Log</button>
     </div>
   </div>
-  <div id="accessDenied">🔒 Owner access required to view this log.</div>
+  <div class="debug-bar" id="debugBar">Waiting for row selection…</div>
   <div class="log-wrap" id="logWrap">
     <div class="empty-state" id="emptyState">No access events logged yet.</div>
     <table id="logTable" style="display:none">
@@ -177,70 +168,75 @@ tbody td.timestamp { color: #aaa; }
 </div>
 
 <script>
-  const STORAGE_KEY = 'emr_access_log_v1';
+  const STORAGE_KEY = 'emr_access_log_v2';
   let isOpen = false;
-  let isOwner = false;
-  let currentUser = null;
+  let currentUser = { name: 'Unknown', email: 'Unknown' };
 
   grist.ready({ requiredAccess: 'full' });
 
-  // Get user and check access level
-  grist.getUser().then(user => {
-    currentUser = user;
-    // Debug: log the full user object so we can see what fields are available
-    console.log('Grist user object:', JSON.stringify(user));
-    // Broad owner check covering different possible field names/values
-    const access = (user.access || '').toLowerCase();
-    isOwner = access === 'owners'
-           || access === 'owner'
-           || access === 'full'
-           || user.isOwner === true
-           || user.IsOwner === true
-           || (user.email || '').toLowerCase() === 'mabdul@idsolns.com'
-           || (user.Email || '').toLowerCase() === 'mabdul@idsolns.com';
-    console.log('isOwner:', isOwner, '| access field:', user.access);
-  }).catch((e) => {
-    console.error('getUser error:', e);
-    isOwner = false;
-  });
+  // Get user info — non-blocking, best effort
+  try {
+    grist.getUser().then(user => {
+      if (user) {
+        currentUser = {
+          name:  user.Name  || user.name  || user.fullName || 'Unknown',
+          email: user.Email || user.email || 'Unknown'
+        };
+        setDebug(`User loaded: ${currentUser.name} (${currentUser.email})`);
+      }
+    }).catch(e => {
+      setDebug(`getUser failed: ${e.message} — logging with Unknown user`);
+    });
+  } catch(e) {
+    setDebug(`getUser error: ${e.message}`);
+  }
 
-  // Listen for row selection on the EMR_Access table
-  grist.onRecord((record, mappings) => {
+  // Listen for row selection — THIS is what logs the access
+  grist.onRecord((record) => {
+    setDebug(`onRecord fired — Row ID: ${record?.id}`);
     if (!record || !record.id) return;
     logAccess(record);
     updateBarCount();
+    if (isOpen) renderTable();
   });
 
-  function logAccess(record) {
-    const userName   = currentUser?.name  || currentUser?.Name  || 'Unknown';
-    const userEmail  = currentUser?.email || currentUser?.Email || 'Unknown';
+  function setDebug(msg) {
+    const el = document.getElementById('debugBar');
+    if (el) el.textContent = msg;
+    console.log('[EMR Log]', msg);
+  }
 
+  function logAccess(record) {
     const entry = {
-      timestamp:   new Date().toLocaleString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-      userName,
-      userEmail,
-      rowId:       record.id,
-      emrUsername: record.Username      || record.Username_Value      || '—',
-      ehrSystem:   record.EHR_System    || record.EHR_System_Value    || '—',
-      practitioner:record.Practitioner_Name || record.Practitioner_Name_Value || '—',
-      facility:    Array.isArray(record.Facility_Name)
-                     ? record.Facility_Name.join(', ')
-                     : (record.Facility_Name_Value || record.Facility_Name || '—')
+      timestamp:    new Date().toLocaleString('en-US', {
+                      month: '2-digit', day: '2-digit', year: 'numeric',
+                      hour: '2-digit', minute: '2-digit', second: '2-digit'
+                    }),
+      userName:     currentUser.name,
+      userEmail:    currentUser.email,
+      rowId:        record.id,
+      emrUsername:  record.Username      || '—',
+      ehrSystem:    record.EHR_System    || '—',
+      practitioner: record.Practitioner_Name_Value || record.Practitioner_Name || '—',
+      facility:     Array.isArray(record.Facility_Name_Value)
+                      ? record.Facility_Name_Value.join(', ')
+                      : (record.Facility_Name_Value || record.Facility_Name || '—')
     };
 
     const logs = getLogs();
-    logs.unshift(entry); // newest first
-    // Cap at 500 entries
+    logs.unshift(entry);
     if (logs.length > 500) logs.length = 500;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(logs));
-
-    if (isOpen && isOwner) renderTable();
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(logs));
+      setDebug(`✓ Logged row ${record.id} by ${currentUser.name} at ${entry.timestamp}`);
+    } catch(e) {
+      setDebug(`Storage error: ${e.message}`);
+    }
   }
 
   function getLogs() {
-    try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    } catch { return []; }
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+    catch { return []; }
   }
 
   function updateBarCount() {
@@ -249,20 +245,18 @@ tbody td.timestamp { color: #aaa; }
 
   function renderTable() {
     const logs = getLogs();
-    const tbody = document.getElementById('logBody');
-    const table = document.getElementById('logTable');
-    const empty = document.getElementById('emptyState');
+    const tbody  = document.getElementById('logBody');
+    const table  = document.getElementById('logTable');
+    const empty  = document.getElementById('emptyState');
 
     if (logs.length === 0) {
       table.style.display = 'none';
       empty.style.display = 'block';
       return;
     }
-
     empty.style.display = 'none';
     table.style.display = 'table';
     tbody.innerHTML = '';
-
     logs.forEach(e => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
@@ -281,24 +275,9 @@ tbody td.timestamp { color: #aaa; }
 
   function togglePanel() {
     isOpen = !isOpen;
-    const panel = document.getElementById('expandedPanel');
-    const arrow = document.getElementById('barArrow');
-    const denied = document.getElementById('accessDenied');
-    const logWrap = document.getElementById('logWrap');
-
-    panel.classList.toggle('visible', isOpen);
-    arrow.classList.toggle('open', isOpen);
-
-    if (isOpen) {
-      if (!isOwner) {
-        denied.style.display = 'block';
-        logWrap.style.display = 'none';
-      } else {
-        denied.style.display = 'none';
-        logWrap.style.display = 'block';
-        renderTable();
-      }
-    }
+    document.getElementById('expandedPanel').classList.toggle('visible', isOpen);
+    document.getElementById('barArrow').classList.toggle('open', isOpen);
+    if (isOpen) renderTable();
   }
 
   function clearLog() {
@@ -326,7 +305,6 @@ tbody td.timestamp { color: #aaa; }
     URL.revokeObjectURL(url);
   }
 
-  // Init count on load
   updateBarCount();
 </script>
 </body>
