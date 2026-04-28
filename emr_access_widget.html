@@ -12,10 +12,11 @@ body {
   font-family: 'DM Sans', sans-serif;
   background: #f1f0ed;
   min-height: 100vh;
-  padding: 20px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 0;
+  overflow: hidden;
 }
 
 /* ── Shared card ── */
@@ -23,10 +24,8 @@ body {
   background: #fff;
   border-radius: 12px;
   border: 1px solid #e0deda;
-  padding: 20px;
-  max-width: 620px;
+  padding: 16px 20px;
   width: 100%;
-  margin: 0 auto;
 }
 .card-title {
   font-size: 14px; font-weight: 600; color: #111;
@@ -91,7 +90,7 @@ body {
 /* ── Detail grid ── */
 .detail-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 10px;
 }
 .detail-item {
@@ -116,7 +115,7 @@ body {
 
 /* ── QR ── */
 .qr-img {
-  max-width: 180px; max-height: 180px;
+  max-width: 140px; max-height: 140px;
   border-radius: 8px; margin: 6px auto 0;
   display: block; cursor: pointer;
 }
@@ -175,18 +174,19 @@ body {
 <div class="card">
   <div class="card-title">🔐 EMR Access Lookup</div>
 
-  <div class="field">
-    <label>Practitioner</label>
-    <select id="practSelect" onchange="onPractChange()">
-      <option value="">— Select practitioner —</option>
-    </select>
-  </div>
-
-  <div class="field">
-    <label>Facility</label>
-    <select id="facSelect" onchange="onFacChange()" disabled>
-      <option value="">— Select facility —</option>
-    </select>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:4px;">
+    <div class="field" style="margin-bottom:0">
+      <label>Practitioner</label>
+      <select id="practSelect" onchange="onPractChange()">
+        <option value="">— Select practitioner —</option>
+      </select>
+    </div>
+    <div class="field" style="margin-bottom:0">
+      <label>Facility</label>
+      <select id="facSelect" onchange="onFacChange()" disabled>
+        <option value="">— Select facility —</option>
+      </select>
+    </div>
   </div>
 
   <div class="status-msg" id="statusMsg"></div>
