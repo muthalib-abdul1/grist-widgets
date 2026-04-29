@@ -34,13 +34,6 @@ body {
 }
 .refresh-btn:hover { border-color: #2d6a4f; color: #2d6a4f; background: #f0f7f4; }
 
-.panels {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  flex: 1;
-}
-
 .panel {
   background: #fff;
   border-radius: 10px;
@@ -48,6 +41,7 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  flex: 1;
 }
 
 .panel-header {
@@ -66,7 +60,6 @@ body {
 }
 .badge.warn  { background: #fde8d0; color: #b35a0a; }
 .badge.ok    { background: #d4edda; color: #1a7a40; }
-.badge.info  { background: #e8f0fe; color: #1a56db; }
 
 .panel-body { overflow-y: auto; flex: 1; }
 
@@ -89,14 +82,9 @@ tbody td {
   font-family: 'DM Mono', monospace; font-size: 10px;
   color: #111; white-space: nowrap;
 }
-tbody td.count {
-  font-weight: 700; color: #b35a0a;
-  text-align: center;
-}
 tbody td.status {
   font-size: 9px; color: #888;
 }
-tbody td.pract { color: #2d6a4f; }
 
 .empty {
   padding: 24px; text-align: center;
@@ -112,7 +100,6 @@ tbody td.pract { color: #2d6a4f; }
   display: inline-block; flex-shrink: 0;
 }
 .dot-warn  { background: #e65100; }
-.dot-ok    { background: #2d6a4f; }
 </style>
 </head>
 <body>
@@ -124,54 +111,26 @@ tbody td.pract { color: #2d6a4f; }
   <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
 </div>
 
-<div class="panels">
-
-  <!-- Panel 1: Duplicate facilities -->
-  <div class="panel">
-    <div class="panel-header">
-      <div class="panel-title">
-        <span class="status-dot dot-warn"></span>
-        Duplicate Facilities
-      </div>
-      <span class="badge warn" id="dupBadge">—</span>
+<div class="panel">
+  <div class="panel-header">
+    <div class="panel-title">
+      <span class="status-dot dot-warn"></span>
+      Not in Coverage Schedule
     </div>
-    <div class="panel-body">
-      <div class="loading" id="dupLoading">Loading…</div>
-      <table id="dupTable" style="display:none">
-        <thead>
-          <tr>
-            <th>Facility</th>
-            <th style="text-align:center">Count</th>
-          </tr>
-        </thead>
-        <tbody id="dupBody"></tbody>
-      </table>
-    </div>
+    <span class="badge warn" id="uncovBadge">—</span>
   </div>
-
-  <!-- Panel 2: Uncovered facilities -->
-  <div class="panel">
-    <div class="panel-header">
-      <div class="panel-title">
-        <span class="status-dot dot-warn"></span>
-        Not in Coverage Schedule
-      </div>
-      <span class="badge warn" id="uncovBadge">—</span>
-    </div>
-    <div class="panel-body">
-      <div class="loading" id="uncovLoading">Loading…</div>
-      <table id="uncovTable" style="display:none">
-        <thead>
-          <tr>
-            <th>Facility</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody id="uncovBody"></tbody>
-      </table>
-    </div>
+  <div class="panel-body">
+    <div class="loading" id="uncovLoading">Loading…</div>
+    <table id="uncovTable" style="display:none">
+      <thead>
+        <tr>
+          <th>Facility</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="uncovBody"></tbody>
+    </table>
   </div>
-
 </div>
 
 <script>
@@ -185,51 +144,6 @@ tbody td.pract { color: #2d6a4f; }
         grist.docApi.fetchTable('Facility')
       ]);
 
-      // Build facility name map
-      const facMap = {};
-      for (let i = 0; i < facilities.id.length; i++) {
-        facMap[facilities.id[i]] = {
-          name:   facilities.Facility_Name?.[i]   || '—',
-          status: facilities.Facility_Status?.[i] || '',
-          type:   facilities.Facility_Type?.[i]   || ''
-        };
-      }
-
-      // Build practitioner name map from WCS
-      // WCS Practitioner_Name is a reference to Employee
-      // We'll use the _Value if available
-      const wcsCount = wcs.id.length;
-
-      // ── Duplicate check ──────────────────────────────────────
-      // Count facility occurrences in WCS with practitioner
-      const facOccurrences = {}; // facId -> [{practName}]
-      for (let i = 0; i < wcsCount; i++) {
-        const facId   = wcs.Facility_Name?.[i];
-        const practName = wcs.Practitioner_Name_Value?.[i]
-                       || wcs.Practitioner_Name?.[i]
-                       || '—';
-        if (!facId) continue;
-        if (!facOccurrences[facId]) facOccurrences[facId] = [];
-        facOccurrences[facId].push(String(practName));
-      }
-
-      const duplicates = [];
-      Object.entries(facOccurrences).forEach(([facId, practs]) => {
-        if (practs.length > 1) {
-          duplicates.push({
-            facName: facMap[parseInt(facId)]?.name || facId,
-            practs,
-            count: practs.length
-          });
-        }
-      });
-      duplicates.sort((a, b) => b.count - a.count);
-
-      renderDuplicates(duplicates);
-
-      // ── Uncovered facilities ──────────────────────────────────
-      // Facilities in Facility table where status != "Lost"
-      // that are NOT referenced in WCS at all
       const coveredFacIds = new Set(
         wcs.Facility_Name
           ? wcs.Facility_Name.filter(id => id && typeof id === 'number')
@@ -239,12 +153,11 @@ tbody td.pract { color: #2d6a4f; }
       const uncovered = [];
       for (let i = 0; i < facilities.id.length; i++) {
         const status = facilities.Facility_Status?.[i] || '';
-        if (status === 'Lost') continue;           // skip Lost
-        if (coveredFacIds.has(facilities.id[i])) continue; // skip covered
+        if (status === 'Lost') continue;
+        if (coveredFacIds.has(facilities.id[i])) continue;
         uncovered.push({
-          name:   facilities.Facility_Name?.[i]   || '—',
+          name:   facilities.Facility_Name?.[i] || '—',
           status: status || 'No Status',
-          type:   facilities.Facility_Type?.[i]   || '—'
         });
       }
       uncovered.sort((a, b) => a.name.localeCompare(b.name));
@@ -252,39 +165,8 @@ tbody td.pract { color: #2d6a4f; }
       renderUncovered(uncovered);
 
     } catch(e) {
-      document.getElementById('dupLoading').textContent  = 'Error: ' + e.message;
       document.getElementById('uncovLoading').textContent = 'Error: ' + e.message;
     }
-  }
-
-  function renderDuplicates(duplicates) {
-    const tbody   = document.getElementById('dupBody');
-    const table   = document.getElementById('dupTable');
-    const loading = document.getElementById('dupLoading');
-    const badge   = document.getElementById('dupBadge');
-
-    loading.style.display = 'none';
-    badge.textContent = duplicates.length;
-    badge.className = 'badge ' + (duplicates.length > 0 ? 'warn' : 'ok');
-
-    if (duplicates.length === 0) {
-      table.style.display = 'none';
-      loading.textContent = '✓ No duplicate facilities found.';
-      loading.style.display = 'block';
-      return;
-    }
-
-    table.style.display = 'table';
-    tbody.innerHTML = '';
-
-    duplicates.forEach(d => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${d.facName}</td>
-        <td class="count">${d.count}</td>
-      `;
-      tbody.appendChild(tr);
-    });
   }
 
   function renderUncovered(uncovered) {
