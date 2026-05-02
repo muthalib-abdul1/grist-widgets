@@ -34,7 +34,7 @@ body {
 }
 .practitioner-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
 .practitioner-card.primary { border-left: 4px solid #1a1916; }
-.practitioner-card.backup { border-left: 4px solid #e0deda; }
+.practitioner-card.backup  { border-left: 4px solid #e0deda; }
 .practitioner-card.empty-slot { border-left: 4px solid #f0eeea; background: #fafaf8; opacity: 0.6; }
 .role-badge {
   font-size: 10px; font-weight: 600; text-transform: uppercase;
@@ -42,8 +42,8 @@ body {
   padding: 3px 8px; border-radius: 4px; white-space: nowrap; flex-shrink: 0;
 }
 .role-badge.primary { background: #1a1916; color: #fff; }
-.role-badge.backup { background: #f1f0ed; color: #888; }
-.role-badge.empty { background: #f1f0ed; color: #ccc; }
+.role-badge.backup  { background: #f1f0ed; color: #888; }
+.role-badge.empty   { background: #f1f0ed; color: #ccc; }
 .practitioner-name { font-size: 13px; font-weight: 500; color: #111; }
 .practitioner-name.unassigned { color: #ccc; font-style: italic; font-weight: 400; }
 .empty-state {
@@ -59,34 +59,63 @@ body {
 <div id="list"><div class="empty-state">Select a facility to view practitioners</div></div>
 <script>
   grist.ready({ requiredAccess: 'read table' });
-  grist.onRecord(function(record) {
-    // Show all keys in record for debugging
-    document.getElementById('debug').textContent = 'Keys: ' + Object.keys(record).join(', ');
 
-    var facilityName = record.Facility_Name || '';
+  // Finds a key in a record by trying multiple candidate names (case-insensitive).
+  function findKey(record, candidates) {
+    var keys = Object.keys(record);
+    for (var i = 0; i < candidates.length; i++) {
+      var c = candidates[i].toLowerCase();
+      for (var j = 0; j < keys.length; j++) {
+        if (keys[j].toLowerCase() === c) return keys[j];
+      }
+    }
+    // Fallback: substring match
+    for (var i = 0; i < candidates.length; i++) {
+      var c = candidates[i].toLowerCase();
+      for (var j = 0; j < keys.length; j++) {
+        if (keys[j].toLowerCase().includes(c)) return keys[j];
+      }
+    }
+    return null;
+  }
+
+  grist.onRecord(function(record) {
+    var keys = Object.keys(record);
+    document.getElementById('debug').textContent = 'Keys: ' + keys.join(', ');
+
+    var facilityKey = findKey(record, ['Facility_Name', 'FacilityName', 'Facility']);
+    var facilityName = facilityKey ? record[facilityKey] : '';
     document.getElementById('facilityName').textContent =
       facilityName ? facilityName.toUpperCase() : 'PRACTITIONERS ASSIGNED';
 
+    // Each slot: label shown + candidate key names to try (in priority order)
     var slots = [
-      { role: 'Primary',    value: record.Primary_Practitioner, isPrimary: true },
-      { role: '1st Backup', value: record['1st_Backup'], isPrimary: false },
-      { role: '2nd Backup', value: record['2nd_Backup'], isPrimary: false },
-      { role: '3rd Backup', value: record['3rd_Backup'], isPrimary: false },
-      { role: '4th Backup', value: record['4th_Backup'], isPrimary: false },
+      { role: 'Primary',    candidates: ['Primary_Practitioner', 'Primary', 'PrimaryPractitioner'], isPrimary: true  },
+      { role: '1st Backup', candidates: ['1st_Backup', 'c1st_Backup', '_1st_Backup', 'Backup1', '1stBackup', 'First_Backup'], isPrimary: false },
+      { role: '2nd Backup', candidates: ['2nd_Backup', 'c2nd_Backup', '_2nd_Backup', 'Backup2', '2ndBackup', 'Second_Backup'], isPrimary: false },
+      { role: '3rd Backup', candidates: ['3rd_Backup', 'c3rd_Backup', '_3rd_Backup', 'Backup3', '3rdBackup', 'Third_Backup'],  isPrimary: false },
+      { role: '4th Backup', candidates: ['4th_Backup', 'c4th_Backup', '_4th_Backup', 'Backup4', '4thBackup', 'Fourth_Backup'], isPrimary: false },
     ];
 
     var list = document.getElementById('list');
     list.innerHTML = '';
+
     slots.forEach(function(slot) {
-      var hasValue = slot.value && String(slot.value).trim() !== '';
+      var key = findKey(record, slot.candidates);
+      var value = key ? record[key] : undefined;
+      var hasValue = value && String(value).trim() !== '';
+
       var card = document.createElement('div');
       card.className = 'practitioner-card ' + (hasValue ? (slot.isPrimary ? 'primary' : 'backup') : 'empty-slot');
+
       var badge = document.createElement('span');
       badge.className = 'role-badge ' + (hasValue ? (slot.isPrimary ? 'primary' : 'backup') : 'empty');
       badge.textContent = slot.role;
+
       var nameEl = document.createElement('span');
       nameEl.className = 'practitioner-name' + (hasValue ? '' : ' unassigned');
-      nameEl.textContent = hasValue ? String(slot.value) : 'Not assigned';
+      nameEl.textContent = hasValue ? String(value) : 'Not assigned';
+
       card.appendChild(badge);
       card.appendChild(nameEl);
       list.appendChild(card);
