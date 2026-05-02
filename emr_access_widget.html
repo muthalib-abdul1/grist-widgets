@@ -97,7 +97,7 @@ body {
 /* ── Fields (2-col grid on left) ── */
 .fields-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
   gap: 10px;
 }
 
@@ -383,15 +383,16 @@ body {
     grid.innerHTML = '';
 
     [
-      { label: 'Username',       value: row.username,       full: false },
-      { label: 'EHR System',     value: row.ehrSystem,      full: false },
-      { label: 'Primary/Backup', value: row.primaryBackup,  full: false },
-      { label: 'Billing Access', value: row.billingAccess,  full: false },
-      { label: 'Password',       value: row.password,       full: false },
-      { label: 'Notes',          value: row.notes,          full: true  },
+      { label: 'Username',       value: row.username,       span: 1 },
+      { label: 'EHR System',     value: row.ehrSystem,      span: 1 },
+      { label: 'Primary/Backup', value: row.primaryBackup,  span: 1 },
+      { label: 'Billing Access', value: row.billingAccess,  span: 1 },
+      { label: 'Password',       value: row.password,       span: 1 },
+      { label: 'Notes',          value: row.notes,          span: 3 },
     ].forEach(f => {
       const div = document.createElement('div');
-      div.className = 'detail-item' + (f.full ? ' full' : '');
+      div.className = 'detail-item';
+      if (f.span > 1) div.style.gridColumn = 'span ' + f.span;
       div.innerHTML = `<div class="detail-label">${f.label}</div><div class="detail-value">${f.value}</div>`;
       grid.appendChild(div);
     });
