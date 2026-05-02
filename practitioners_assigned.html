@@ -19,15 +19,17 @@ body {
   letter-spacing: 0.07em; color: #aaa;
   font-family: 'DM Mono', monospace; margin-bottom: 14px;
 }
+.debug {
+  font-size: 10px; font-family: monospace;
+  background: #f8f7f5; border: 1px solid #e0deda;
+  border-radius: 6px; padding: 8px; margin-bottom: 12px;
+  color: #555; word-break: break-all;
+}
 .practitioner-card {
-  background: #fff;
-  border: 1px solid #e0deda;
-  border-radius: 10px;
-  padding: 14px 16px;
-  margin-bottom: 10px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  background: #fff; border: 1px solid #e0deda;
+  border-radius: 10px; padding: 14px 16px;
+  margin-bottom: 10px; display: flex;
+  align-items: center; gap: 12px;
   transition: box-shadow 0.15s;
 }
 .practitioner-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
@@ -35,11 +37,9 @@ body {
 .practitioner-card.backup { border-left: 4px solid #e0deda; }
 .practitioner-card.empty-slot { border-left: 4px solid #f0eeea; background: #fafaf8; opacity: 0.6; }
 .role-badge {
-  font-size: 10px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.07em;
-  font-family: 'DM Mono', monospace;
-  padding: 3px 8px; border-radius: 4px;
-  white-space: nowrap; flex-shrink: 0;
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.07em; font-family: 'DM Mono', monospace;
+  padding: 3px 8px; border-radius: 4px; white-space: nowrap; flex-shrink: 0;
 }
 .role-badge.primary { background: #1a1916; color: #fff; }
 .role-badge.backup { background: #f1f0ed; color: #888; }
@@ -49,18 +49,20 @@ body {
 .empty-state {
   padding: 32px; text-align: center; color: #aaa;
   font-family: 'DM Mono', monospace; font-size: 12px;
-  background: #fff; border-radius: 10px;
-  border: 1px solid #e0deda;
+  background: #fff; border-radius: 10px; border: 1px solid #e0deda;
 }
 </style>
 </head>
 <body>
 <div class="facility-name" id="facilityName">PRACTITIONERS ASSIGNED</div>
+<div class="debug" id="debug">Waiting for record...</div>
 <div id="list"><div class="empty-state">Select a facility to view practitioners</div></div>
 <script>
   grist.ready({ requiredAccess: 'read table' });
-
   grist.onRecord(function(record) {
+    // Show all keys in record for debugging
+    document.getElementById('debug').textContent = 'Keys: ' + Object.keys(record).join(', ');
+
     var facilityName = record.Facility_Name || '';
     document.getElementById('facilityName').textContent =
       facilityName ? facilityName.toUpperCase() : 'PRACTITIONERS ASSIGNED';
@@ -75,20 +77,16 @@ body {
 
     var list = document.getElementById('list');
     list.innerHTML = '';
-
     slots.forEach(function(slot) {
       var hasValue = slot.value && String(slot.value).trim() !== '';
       var card = document.createElement('div');
       card.className = 'practitioner-card ' + (hasValue ? (slot.isPrimary ? 'primary' : 'backup') : 'empty-slot');
-
       var badge = document.createElement('span');
       badge.className = 'role-badge ' + (hasValue ? (slot.isPrimary ? 'primary' : 'backup') : 'empty');
       badge.textContent = slot.role;
-
       var nameEl = document.createElement('span');
       nameEl.className = 'practitioner-name' + (hasValue ? '' : ' unassigned');
       nameEl.textContent = hasValue ? String(slot.value) : 'Not assigned';
-
       card.appendChild(badge);
       card.appendChild(nameEl);
       list.appendChild(card);
