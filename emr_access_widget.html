@@ -16,7 +16,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0;
-  overflow: hidden;
+  overflow-y: auto; /* FIX 1: was overflow: hidden */
 }
 
 /* ── Shared card ── */
@@ -100,7 +100,11 @@ body {
   padding: 10px 12px;
 }
 .detail-item.full { grid-column: 1 / -1; }
-.detail-item.centered { grid-column: 1 / -1; text-align: center; }
+.detail-item.centered {
+  grid-column: 1 / -1;
+  text-align: center;
+  min-height: 220px; /* FIX 3: prevents collapse while QR loads */
+}
 .detail-label {
   font-family: 'DM Mono', monospace; font-size: 9px;
   font-weight: 600; text-transform: uppercase;
@@ -115,7 +119,8 @@ body {
 
 /* ── QR ── */
 .qr-img {
-  max-width: 140px; max-height: 140px;
+  max-width: 200px;  /* FIX 2: was 140px */
+  max-height: 200px; /* FIX 2: was 140px */
   border-radius: 8px; margin: 6px auto 0;
   display: block; cursor: pointer;
 }
@@ -164,8 +169,6 @@ body {
   color: #aaa; text-align: center; padding: 8px 0;
 }
 .status-msg.error { color: #b35a0a; }
-
-
 </style>
 </head>
 <body>
@@ -204,8 +207,6 @@ body {
   </div>
 </div>
 
-
-
 <!-- ── QR Overlay ── -->
 <div id="qrOverlay">
   <div class="qr-caption">Tap image to close</div>
@@ -224,7 +225,6 @@ body {
   grist.ready({ requiredAccess: 'full' });
 
   async function init() {
-    // Resolve user
     try {
       if (typeof grist.getUser === 'function') {
         const u = await grist.getUser();
@@ -240,10 +240,6 @@ body {
       }
     } catch(e) {}
 
-    // Show access log section for owners
-    
-
-    // Load EMR data
     await loadData();
   }
 
@@ -456,11 +452,9 @@ body {
           Row_ID:       row.id
         }]
       ]);
-      
     } catch(e) { console.warn('Log write failed:', e); }
   }
 
-  
   async function loadLog() {
     try {
       const t = await grist.docApi.fetchTable('EMR_Access_Log');
