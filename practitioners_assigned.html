@@ -55,7 +55,6 @@ body {
 </head>
 <body>
 <div class="facility-name" id="facilityName">PRACTITIONERS ASSIGNED</div>
-<div class="debug" id="debug">Waiting for record...</div>
 <div id="list"><div class="empty-state">Select a facility to view practitioners</div></div>
 <script>
   grist.ready({ requiredAccess: 'read table' });
@@ -81,7 +80,6 @@ body {
 
   grist.onRecord(function(record) {
     var keys = Object.keys(record);
-    document.getElementById('debug').textContent = 'Keys: ' + keys.join(', ');
 
     var facilityKey = findKey(record, ['Facility_Name', 'FacilityName', 'Facility']);
     var facilityName = facilityKey ? record[facilityKey] : '';
