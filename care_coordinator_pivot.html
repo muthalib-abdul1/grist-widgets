@@ -111,7 +111,6 @@ tbody td:first-child {
   let activeCC = null;
   let cachedWL = null;
   let cachedWeekIdToLabel = {};
-  // Single source of truth for coordinator list — set in buildTable, used in renderButtons
   let allCoordinators = [];
 
   grist.ready({ requiredAccess: 'full' });
@@ -127,7 +126,6 @@ tbody td:first-child {
         cachedWeekIdToLabel[weeksTable.id[i]] = weeksTable.Week[i];
       }
 
-      // buildTable populates allCoordinators, then renderButtons uses it
       buildTable();
       renderButtons();
     } catch(e) {
@@ -151,7 +149,6 @@ tbody td:first-child {
     allBtn.onclick = () => selectCC(null, allBtn);
     row.appendChild(allBtn);
 
-    // Use allCoordinators extracted by buildTable — same source as table columns
     allCoordinators.forEach(cc => {
       const btn = document.createElement('button');
       btn.className = 'cc-btn' + (activeCC === cc ? ' active' : '');
@@ -161,26 +158,12 @@ tbody td:first-child {
     });
   }
 
-function selectCC(cc, btn) {
-  activeCC = cc;
-  document.querySelectorAll('.cc-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-
-  // Find the matching row in the linked table and move the cursor
-  if (cc !== null) {
-    const idx = cachedWL
-      ? [...new Set(Array.from({length: cachedWL.id.length}, 
-          (_, i) => getVal(cachedWL, 'Care_Coordinator', i)))].sort().indexOf(cc)
-      : -1;
-    // Use summaryRows to find the Table2 row for this CC
-    const match = summaryRows.find(r => 
-      (r.Care_Coordinator_Value || r.Care_Coordinator) === cc
-    );
-    if (match) grist.setCursorPos({ rowId: match.id });
+  function selectCC(cc, btn) {
+    activeCC = cc;
+    document.querySelectorAll('.cc-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    buildTable();
   }
-
-  buildTable();
-}
 
   function buildTable() {
     const wl = cachedWL;
@@ -202,7 +185,6 @@ function selectCC(cc, btn) {
       if (cc) ccSet.add(cc);
     }
 
-    // Store globally so renderButtons can use the same list
     allCoordinators = Array.from(ccSet).sort();
 
     const coordinators = activeCC ? allCoordinators.filter(cc => cc === activeCC) : allCoordinators;
