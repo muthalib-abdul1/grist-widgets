@@ -110,6 +110,9 @@ tbody td:first-child {
 <script>
   let summaryRows = [];
   let activeCC = null;
+  // Store fetched data so buttons can re-render without re-fetching
+  let cachedWL = null;
+  let cachedWeekIdToLabel = {};
 
   grist.ready({ requiredAccess: 'full' });
 
@@ -118,7 +121,16 @@ tbody td:first-child {
     renderButtons();
     try {
       const wl = await grist.docApi.fetchTable('Week_List');
-      await buildTable(wl);
+      cachedWL = wl;
+
+      // Fetch Weeks_Table once and cache it
+      const weeksTable = await grist.docApi.fetchTable('Weeks_Table');
+      cachedWeekIdToLabel = {};
+      for (let i = 0; i < weeksTable.id.length; i++) {
+        cachedWeekIdToLabel[weeksTable.id[i]] = weeksTable.Week[i];
+      }
+
+      buildTable();
     } catch(e) {
       document.getElementById('loading').textContent = 'Error: ' + e.message;
     }
@@ -133,11 +145,13 @@ tbody td:first-child {
   function renderButtons() {
     const row = document.getElementById('btnRow');
     row.innerHTML = '';
+
     const allBtn = document.createElement('button');
     allBtn.className = 'cc-btn' + (activeCC === null ? ' active' : '');
     allBtn.textContent = 'All';
     allBtn.onclick = () => selectCC(null, allBtn, null);
     row.appendChild(allBtn);
+
     summaryRows.forEach(r => {
       const cc = r.Care_Coordinator_Value || r.Care_Coordinator;
       if (!cc) return;
@@ -151,26 +165,21 @@ tbody td:first-child {
 
   function selectCC(cc, btn, rowId) {
     activeCC = cc;
+    // Update button active states
     document.querySelectorAll('.cc-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
+    // Sync Grist cursor if a specific row was selected
     if (rowId) grist.setCursorPos({ rowId });
+    // Re-render table with new filter
+    buildTable();
   }
 
-  async function buildTable(wl) {
+  function buildTable() {
+    const wl = cachedWL;
+    const weekIdToLabel = cachedWeekIdToLabel;
+
     if (!wl || !wl.id || wl.id.length === 0) {
       document.getElementById('loading').textContent = 'No data found.';
-      return;
-    }
-
-    // Fetch Weeks_Table to map row ID -> week label
-    let weekIdToLabel = {};
-    try {
-      const weeksTable = await grist.docApi.fetchTable('Weeks_Table');
-      for (let i = 0; i < weeksTable.id.length; i++) {
-        weekIdToLabel[weeksTable.id[i]] = weeksTable.Week[i];
-      }
-    } catch(e) {
-      document.getElementById('loading').textContent = 'Error loading Weeks_Table: ' + e.message;
       return;
     }
 
@@ -185,8 +194,10 @@ tbody td:first-child {
       if (cc) ccSet.add(cc);
     }
 
+    const allCoordinators = Array.from(ccSet).sort();
+    // If a CC is selected, only show that column; otherwise show all
+    const coordinators = activeCC ? allCoordinators.filter(cc => cc === activeCC) : allCoordinators;
     const weeks = Array.from(weeksMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-    const coordinators = Array.from(ccSet).sort();
 
     if (weeks.length === 0 || coordinators.length === 0) {
       document.getElementById('loading').textContent = 'Could not build table.';
@@ -206,11 +217,12 @@ tbody td:first-child {
       const rawWeek = wl.Week ? wl.Week[i] : null;
       const weekLabel = rawWeek ? (weekIdToLabel[rawWeek] || String(rawWeek)) : null;
       const cc = getVal(wl, 'Care_Coordinator', i);
+      // Skip rows that don't belong to the selected CC
+      if (activeCC && cc !== activeCC) continue;
       if (weekLabel && cc && matrix[weekLabel] && matrix[weekLabel][cc] !== undefined) {
-      const completed = wl.Audit_Status && wl.Audit_Status[i] === 'Completed';
-      const incomplete = !completed;
-      if (incomplete) matrix[weekLabel][cc]++;
-      if (completed) matrixComplete[weekLabel][cc]++;
+        const completed = wl.Audit_Status && wl.Audit_Status[i] === 'Completed';
+        if (!completed) matrix[weekLabel][cc]++;
+        else matrixComplete[weekLabel][cc]++;
       }
     }
 
