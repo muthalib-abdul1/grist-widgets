@@ -108,19 +108,18 @@ tbody td:first-child {
 </div>
 
 <script>
-  let summaryRows = [];
   let activeCC = null;
-  // Store fetched data so buttons can re-render without re-fetching
   let cachedWL = null;
   let cachedWeekIdToLabel = {};
+  // Single source of truth for coordinator list — set in buildTable, used in renderButtons
+  let allCoordinators = [];
 
   grist.ready({ requiredAccess: 'full' });
 
-grist.onRecords(async (records) => {
-    summaryRows = records;
+  grist.onRecords(async (records) => {
     try {
       const wl = await grist.docApi.fetchTable('Week_List');
-      cachedWL = wl;  // ← cachedWL is now set
+      cachedWL = wl;
 
       const weeksTable = await grist.docApi.fetchTable('Weeks_Table');
       cachedWeekIdToLabel = {};
@@ -128,8 +127,9 @@ grist.onRecords(async (records) => {
         cachedWeekIdToLabel[weeksTable.id[i]] = weeksTable.Week[i];
       }
 
-      renderButtons(); // ← moved HERE, after cachedWL is ready
+      // buildTable populates allCoordinators, then renderButtons uses it
       buildTable();
+      renderButtons();
     } catch(e) {
       document.getElementById('loading').textContent = 'Error: ' + e.message;
     }
@@ -141,41 +141,30 @@ grist.onRecords(async (records) => {
     return null;
   }
 
-function renderButtons() {
-  const row = document.getElementById('btnRow');
-  row.innerHTML = '';
+  function renderButtons() {
+    const row = document.getElementById('btnRow');
+    row.innerHTML = '';
 
-  const allBtn = document.createElement('button');
-  allBtn.className = 'cc-btn' + (activeCC === null ? ' active' : '');
-  allBtn.textContent = 'All';
-  allBtn.onclick = () => selectCC(null, allBtn, null);
-  row.appendChild(allBtn);
+    const allBtn = document.createElement('button');
+    allBtn.className = 'cc-btn' + (activeCC === null ? ' active' : '');
+    allBtn.textContent = 'All';
+    allBtn.onclick = () => selectCC(null, allBtn);
+    row.appendChild(allBtn);
 
-  // Build from cachedWL instead of summaryRows
-  if (!cachedWL) return;
-  const ccSet = new Set();
-  for (let i = 0; i < cachedWL.id.length; i++) {
-    const cc = getVal(cachedWL, 'Care_Coordinator', i);
-    if (cc) ccSet.add(cc);
+    // Use allCoordinators extracted by buildTable — same source as table columns
+    allCoordinators.forEach(cc => {
+      const btn = document.createElement('button');
+      btn.className = 'cc-btn' + (activeCC === cc ? ' active' : '');
+      btn.textContent = cc;
+      btn.onclick = () => selectCC(cc, btn);
+      row.appendChild(btn);
+    });
   }
 
-  Array.from(ccSet).sort().forEach(cc => {
-    const btn = document.createElement('button');
-    btn.className = 'cc-btn' + (activeCC === cc ? ' active' : '');
-    btn.textContent = cc;
-    btn.onclick = () => selectCC(cc, btn, null);
-    row.appendChild(btn);
-  });
-}
-
-  function selectCC(cc, btn, rowId) {
+  function selectCC(cc, btn) {
     activeCC = cc;
-    // Update button active states
     document.querySelectorAll('.cc-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    // Sync Grist cursor if a specific row was selected
-    if (rowId) grist.setCursorPos({ rowId });
-    // Re-render table with new filter
     buildTable();
   }
 
@@ -199,8 +188,9 @@ function renderButtons() {
       if (cc) ccSet.add(cc);
     }
 
-    const allCoordinators = Array.from(ccSet).sort();
-    // If a CC is selected, only show that column; otherwise show all
+    // Store globally so renderButtons can use the same list
+    allCoordinators = Array.from(ccSet).sort();
+
     const coordinators = activeCC ? allCoordinators.filter(cc => cc === activeCC) : allCoordinators;
     const weeks = Array.from(weeksMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
 
@@ -209,7 +199,6 @@ function renderButtons() {
       return;
     }
 
-    // Build matrix for incomplete and complete counts
     const matrix = {};
     const matrixComplete = {};
     weeks.forEach(([wId]) => {
@@ -222,7 +211,6 @@ function renderButtons() {
       const rawWeek = wl.Week ? wl.Week[i] : null;
       const weekLabel = rawWeek ? (weekIdToLabel[rawWeek] || String(rawWeek)) : null;
       const cc = getVal(wl, 'Care_Coordinator', i);
-      // Skip rows that don't belong to the selected CC
       if (activeCC && cc !== activeCC) continue;
       if (weekLabel && cc && matrix[weekLabel] && matrix[weekLabel][cc] !== undefined) {
         const completed = wl.Audit_Status && wl.Audit_Status[i] === 'Completed';
@@ -240,7 +228,6 @@ function renderButtons() {
       colTotals[cc] = weeks.reduce((s, [wId]) => s + (matrix[wId][cc] || 0), 0);
     });
 
-    // Build header
     const thead = document.getElementById('thead');
     thead.innerHTML = '';
     const hRow = document.createElement('tr');
@@ -258,7 +245,6 @@ function renderButtons() {
     hRow.appendChild(totalTh);
     thead.appendChild(hRow);
 
-    // Build body
     const tbody = document.getElementById('tbody');
     tbody.innerHTML = '';
     weeks.forEach(([wId, label]) => {
@@ -295,7 +281,6 @@ function renderButtons() {
       tbody.appendChild(tr);
     });
 
-    // Totals row
     const tRow = document.createElement('tr');
     tRow.className = 'total-row';
     const tlbl = document.createElement('td');
