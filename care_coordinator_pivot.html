@@ -118,7 +118,7 @@ tbody td:first-child {
   // setCursorPos to drive the Backlogs Card and Backlogs List widgets.
   let summaryRows = [];
 
-  grist.ready({ requiredAccess: 'full' });
+  grist.ready({ requiredAccess: "full", allowSelectBy: true });
 
   grist.onRecords(async (records) => {
     try {
