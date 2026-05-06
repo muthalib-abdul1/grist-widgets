@@ -254,7 +254,8 @@ body {
             Practitioner_Name: covRecords.Practitioner_Name[i],
             Facility_Name: covRecords.id[i],
             Coverage_Type: ['L', covRecords.Coverage_Type[i]],
-            Overall_Status: 'Expected to Round'  // ← auto-populate on row creation
+            Overall_Status: 'Expected to Round'
+            Audit_Status: 'Not Initiated'
           }]);
           created++;
         }
