@@ -113,10 +113,18 @@ tbody td:first-child {
   let cachedWeekIdToLabel = {};
   let allCoordinators = [];
 
+  // Rows from the linked summary table (Week_List_summary_Care_Coordinator).
+  // grist.onRecords fires with these — each row has an .id we pass to
+  // setCursorPos to drive the Backlogs Card and Backlogs List widgets.
+  let summaryRows = [];
+
   grist.ready({ requiredAccess: 'full' });
 
   grist.onRecords(async (records) => {
     try {
+      // THIS is the fix: assign the incoming records to summaryRows
+      summaryRows = records;
+
       const wl = await grist.docApi.fetchTable('Week_List');
       cachedWL = wl;
 
@@ -137,6 +145,11 @@ tbody td:first-child {
     if (table[col + '_Value']) return table[col + '_Value'][i];
     if (table[col]) return table[col][i];
     return null;
+  }
+
+  function getCCFromRecord(rec) {
+    // Grist serializes Choice fields as plain strings on the record object
+    return rec.Care_Coordinator_Value || rec.Care_Coordinator || null;
   }
 
   function renderButtons() {
@@ -162,6 +175,16 @@ tbody td:first-child {
     activeCC = cc;
     document.querySelectorAll('.cc-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
+
+    if (cc !== null) {
+      // Find the summary row for this coordinator and move the cursor there.
+      // This is what filters the linked Backlogs Card + Backlogs List.
+      const match = summaryRows.find(r => getCCFromRecord(r) === cc);
+      if (match) {
+        grist.setCursorPos({ rowId: match.id });
+      }
+    }
+
     buildTable();
   }
 
@@ -187,7 +210,9 @@ tbody td:first-child {
 
     allCoordinators = Array.from(ccSet).sort();
 
-    const coordinators = activeCC ? allCoordinators.filter(cc => cc === activeCC) : allCoordinators;
+    const coordinators = activeCC
+      ? allCoordinators.filter(cc => cc === activeCC)
+      : allCoordinators;
     const weeks = Array.from(weeksMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
 
     if (weeks.length === 0 || coordinators.length === 0) {
