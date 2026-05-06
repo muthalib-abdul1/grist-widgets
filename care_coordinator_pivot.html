@@ -116,20 +116,19 @@ tbody td:first-child {
 
   grist.ready({ requiredAccess: 'full' });
 
-  grist.onRecords(async (records) => {
+grist.onRecords(async (records) => {
     summaryRows = records;
-    renderButtons();
     try {
       const wl = await grist.docApi.fetchTable('Week_List');
-      cachedWL = wl;
+      cachedWL = wl;  // ← cachedWL is now set
 
-      // Fetch Weeks_Table once and cache it
       const weeksTable = await grist.docApi.fetchTable('Weeks_Table');
       cachedWeekIdToLabel = {};
       for (let i = 0; i < weeksTable.id.length; i++) {
         cachedWeekIdToLabel[weeksTable.id[i]] = weeksTable.Week[i];
       }
 
+      renderButtons(); // ← moved HERE, after cachedWL is ready
       buildTable();
     } catch(e) {
       document.getElementById('loading').textContent = 'Error: ' + e.message;
