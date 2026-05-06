@@ -142,26 +142,32 @@ tbody td:first-child {
     return null;
   }
 
-  function renderButtons() {
-    const row = document.getElementById('btnRow');
-    row.innerHTML = '';
+function renderButtons() {
+  const row = document.getElementById('btnRow');
+  row.innerHTML = '';
 
-    const allBtn = document.createElement('button');
-    allBtn.className = 'cc-btn' + (activeCC === null ? ' active' : '');
-    allBtn.textContent = 'All';
-    allBtn.onclick = () => selectCC(null, allBtn, null);
-    row.appendChild(allBtn);
+  const allBtn = document.createElement('button');
+  allBtn.className = 'cc-btn' + (activeCC === null ? ' active' : '');
+  allBtn.textContent = 'All';
+  allBtn.onclick = () => selectCC(null, allBtn, null);
+  row.appendChild(allBtn);
 
-    summaryRows.forEach(r => {
-      const cc = r.Care_Coordinator_Value || r.Care_Coordinator;
-      if (!cc) return;
-      const btn = document.createElement('button');
-      btn.className = 'cc-btn' + (activeCC === cc ? ' active' : '');
-      btn.textContent = cc;
-      btn.onclick = () => selectCC(cc, btn, r.id);
-      row.appendChild(btn);
-    });
+  // Build from cachedWL instead of summaryRows
+  if (!cachedWL) return;
+  const ccSet = new Set();
+  for (let i = 0; i < cachedWL.id.length; i++) {
+    const cc = getVal(cachedWL, 'Care_Coordinator', i);
+    if (cc) ccSet.add(cc);
   }
+
+  Array.from(ccSet).sort().forEach(cc => {
+    const btn = document.createElement('button');
+    btn.className = 'cc-btn' + (activeCC === cc ? ' active' : '');
+    btn.textContent = cc;
+    btn.onclick = () => selectCC(cc, btn, null);
+    row.appendChild(btn);
+  });
+}
 
   function selectCC(cc, btn, rowId) {
     activeCC = cc;
