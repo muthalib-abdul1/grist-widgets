@@ -113,18 +113,13 @@ tbody td:first-child {
   let cachedWeekIdToLabel = {};
   let allCoordinators = [];
 
-  // Rows from the linked summary table (Week_List_summary_Care_Coordinator).
-  // grist.onRecords fires with these — each row has an .id we pass to
-  // setCursorPos to drive the Backlogs Card and Backlogs List widgets.
-  let summaryRows = [];
-
-  grist.ready({ requiredAccess: "full", allowSelectBy: true });
+  // allowSelectBy: true  →  this widget appears in other widgets' SELECT BY list
+  // When a button is clicked we call grist.setSelectedRows(ids) with matching
+  // Week_List row IDs, which filters every widget whose SELECT BY = this widget.
+  grist.ready({ requiredAccess: 'full', allowSelectBy: true });
 
   grist.onRecords(async (records) => {
     try {
-      // THIS is the fix: assign the incoming records to summaryRows
-      summaryRows = records;
-
       const wl = await grist.docApi.fetchTable('Week_List');
       cachedWL = wl;
 
@@ -145,11 +140,6 @@ tbody td:first-child {
     if (table[col + '_Value']) return table[col + '_Value'][i];
     if (table[col]) return table[col][i];
     return null;
-  }
-
-  function getCCFromRecord(rec) {
-    // Grist serializes Choice fields as plain strings on the record object
-    return rec.Care_Coordinator_Value || rec.Care_Coordinator || null;
   }
 
   function renderButtons() {
@@ -176,13 +166,21 @@ tbody td:first-child {
     document.querySelectorAll('.cc-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
 
-    if (cc !== null) {
-      // Find the summary row for this coordinator and move the cursor there.
-      // This is what filters the linked Backlogs Card + Backlogs List.
-      const match = summaryRows.find(r => getCCFromRecord(r) === cc);
-      if (match) {
-        grist.setCursorPos({ rowId: match.id });
+    const wl = cachedWL;
+    if (cc === null) {
+      // null = clear filter, show all rows in linked widgets
+      grist.setSelectedRows(null);
+    } else if (wl && wl.id) {
+      // Collect every Week_List row ID whose Care_Coordinator matches
+      const ids = [];
+      for (let i = 0; i < wl.id.length; i++) {
+        if (getVal(wl, 'Care_Coordinator', i) === cc) {
+          ids.push(wl.id[i]);
+        }
       }
+      // Pass those IDs to Grist — linked widgets (Backlogs List, Backlogs Card)
+      // will filter themselves to show only these rows.
+      grist.setSelectedRows(ids);
     }
 
     buildTable();
