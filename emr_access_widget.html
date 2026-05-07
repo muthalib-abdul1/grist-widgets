@@ -120,6 +120,16 @@ body {
   color: #111; font-weight: 500;
   word-break: break-all;
 }
+.detail-value a {
+  color: #2d6a4f;
+  text-decoration: none;
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  font-weight: 500;
+}
+.detail-value a:hover {
+  text-decoration: underline;
+}
 
 /* ── QR panel (right column) ── */
 .qr-panel {
@@ -257,6 +267,22 @@ body {
 
   grist.ready({ requiredAccess: 'full' });
 
+  // ── Parse markdown-style links [text](url) or plain URLs ────
+  function formatEHR(val) {
+    if (!val || val === '—') return '—';
+    // Markdown link: [text](url)
+    const mdMatch = val.match(/^\[(.+?)\]\((https?:\/\/.+?)\)$/);
+    if (mdMatch) {
+      return `<a href="${mdMatch[2]}" target="_blank">${mdMatch[1]}</a>`;
+    }
+    // Plain URL
+    const urlMatch = val.match(/^(https?:\/\/\S+)$/);
+    if (urlMatch) {
+      return `<a href="${urlMatch[1]}" target="_blank">${urlMatch[1]}</a>`;
+    }
+    return val;
+  }
+
   async function init() {
     try {
       if (typeof grist.getUser === 'function') {
@@ -308,7 +334,7 @@ body {
           primaryBackup: emr.Primary_Backup?.[i]      || '—',
           billingAccess: emr.Billing_Access_Type?.[i] || '—',
           notes:         emr.Notes?.[i]               || '—',
-          qrCode: emr.QR_Code?.[i] || emr.QR_Code2?.[i] || ''
+          qrCode:        emr.QR_Code?.[i]             || ''
         });
       }
 
@@ -373,28 +399,34 @@ body {
 
     setStatus('');
     showDetails(row, facId);
-    console.log('QR value:', row.qrCode);
     logAccess(row, facId);
     startTimer();
   }
 
   function showDetails(row, facId) {
-    // Fields on the left
     const grid = document.getElementById('fieldsGrid');
     grid.innerHTML = '';
 
     [
-      { label: 'Username',       value: row.username,       span: 1 },
-      { label: 'EHR System',     value: row.ehrSystem,      span: 1 },
-      { label: 'Primary/Backup', value: row.primaryBackup,  span: 1 },
-      { label: 'Billing Access', value: row.billingAccess,  span: 1 },
-      { label: 'Password',       value: row.password,       span: 1 },
-      { label: 'Notes',          value: row.notes,          span: 3 },
+      { label: 'Username',       value: row.username,           span: 1, html: false },
+      { label: 'EHR System',     value: formatEHR(row.ehrSystem), span: 1, html: true  },
+      { label: 'Primary/Backup', value: row.primaryBackup,      span: 1, html: false },
+      { label: 'Billing Access', value: row.billingAccess,      span: 1, html: false },
+      { label: 'Password',       value: row.password,           span: 1, html: false },
+      { label: 'Notes',          value: row.notes,              span: 3, html: false },
     ].forEach(f => {
       const div = document.createElement('div');
       div.className = 'detail-item';
       if (f.span > 1) div.style.gridColumn = 'span ' + f.span;
-      div.innerHTML = `<div class="detail-label">${f.label}</div><div class="detail-value">${f.value}</div>`;
+      const valueDiv = document.createElement('div');
+      valueDiv.className = 'detail-value';
+      if (f.html) {
+        valueDiv.innerHTML = f.value;
+      } else {
+        valueDiv.textContent = f.value;
+      }
+      div.innerHTML = `<div class="detail-label">${f.label}</div>`;
+      div.appendChild(valueDiv);
       grid.appendChild(div);
     });
 
@@ -410,7 +442,6 @@ body {
       img.alt = 'QR Code';
       img.title = 'Click to enlarge';
       img.onclick = () => openQR(qrVal);
-
       img.src = qrVal;
       img.onload = () => {
         qrContent.appendChild(img);
