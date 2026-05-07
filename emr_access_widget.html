@@ -532,10 +532,8 @@ body {
 
   // ── QR overlay ───────────────────────────────────────────────
   function openQR(url) {
-    fetch(url).then(r=>r.blob()).then(blob=>{
-      document.getElementById('qrOverlayImg').src = URL.createObjectURL(blob);
-      document.getElementById('qrOverlay').classList.add('visible');
-    }).catch(()=>window.open(url,'_blank'));
+    document.getElementById('qrOverlayImg').src = url;
+    document.getElementById('qrOverlay').classList.add('visible');
   }
   function closeQR() {
     document.getElementById('qrOverlay').classList.remove('visible');
