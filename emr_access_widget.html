@@ -410,23 +410,21 @@ body {
       img.title = 'Click to enlarge';
       img.onclick = () => openQR(qrVal);
 
-      fetch(qrVal)
-        .then(r => { if (!r.ok) throw new Error(); return r.blob(); })
-        .then(blob => {
-          img.src = URL.createObjectURL(blob);
-          qrContent.appendChild(img);
-          const hint = document.createElement('div');
-          hint.className = 'qr-hint';
-          hint.textContent = 'Tap to enlarge';
-          qrContent.appendChild(hint);
-        })
-        .catch(() => {
-          const link = document.createElement('a');
-          link.href = qrVal; link.target = '_blank';
-          link.textContent = '📷 Open QR ↗';
-          link.style.cssText = 'font-family:DM Mono,monospace;font-size:11px;color:#2d6a4f;';
-          qrContent.appendChild(link);
-        });
+      img.src = qrVal;
+      img.onload = () => {
+        qrContent.appendChild(img);
+        const hint = document.createElement('div');
+        hint.className = 'qr-hint';
+        hint.textContent = 'Tap to enlarge';
+        qrContent.appendChild(hint);
+      };
+      img.onerror = () => {
+        const link = document.createElement('a');
+        link.href = qrVal; link.target = '_blank';
+        link.textContent = '📷 Open QR ↗';
+        link.style.cssText = 'font-family:DM Mono,monospace;font-size:11px;color:#2d6a4f;';
+        qrContent.appendChild(link);
+      };
     } else {
       qrContent.innerHTML = '<div class="qr-none">No QR</div>';
     }
