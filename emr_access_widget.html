@@ -275,7 +275,7 @@ body {
     setStatus('Loading…');
     try {
       const [emr, employees, facilities] = await Promise.all([
-        grist.docApi.fetchTable('EMR_Access'),
+        grist.docApi.fetchTable('EMR_Access_Log2'),
         grist.docApi.fetchTable('Employee'),
         grist.docApi.fetchTable('Facility')
       ]);
