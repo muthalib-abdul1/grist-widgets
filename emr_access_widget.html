@@ -308,7 +308,7 @@ body {
           primaryBackup: emr.Primary_Backup?.[i]      || '—',
           billingAccess: emr.Billing_Access_Type?.[i] || '—',
           notes:         emr.Notes?.[i]               || '—',
-          qrCode:        emr.QR_Code?.[i]             || ''
+          qrCode: emr.QR_Code?.[i] || emr.QR_Code2?.[i] || ''
         });
       }
 
@@ -373,6 +373,7 @@ body {
 
     setStatus('');
     showDetails(row, facId);
+    console.log('QR value:', row.qrCode);
     logAccess(row, facId);
     startTimer();
   }
