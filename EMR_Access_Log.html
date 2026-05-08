@@ -99,38 +99,46 @@ tbody td.ts { color: #666; font-size: 9px; }
 <script>
   const ADMIN_EMAILS = ['mabdul@idsolns.com', 'oaboyeji@idsolns.com'];
 
+  let currentUserEmail = '';
+
   grist.ready({ requiredAccess: 'full' });
 
-  async function init() {
-    let email = '';
-    const debugBar = document.getElementById('debugBar');
+  // Use the same pattern as EMR Access widget — listen for user info via grist message
+  grist.on('message', function(msg) {
+    if (msg && msg.user) {
+      const u = msg.user;
+      currentUserEmail = (u.email || u.Email || u.loginEmail || '').toLowerCase().trim();
+      const debugBar = document.getElementById('debugBar');
+      debugBar.textContent = 'Message user email: ' + currentUserEmail;
+      const isAdmin = ADMIN_EMAILS.includes(currentUserEmail);
+      document.getElementById('adminActions').style.display = isAdmin ? 'flex' : 'none';
+    }
+  });
 
+  async function init() {
+    const debugBar = document.getElementById('debugBar');
     try {
-      // Method 1: getAccessToken — decode JWT to get email
-      if (typeof grist.getAccessToken === 'function') {
-        const tokenObj = await grist.getAccessToken({ readOnly: true });
-        const token = tokenObj.token || tokenObj;
-        // JWT payload is base64 encoded in the second segment
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        email = (payload.email || payload.sub || '').toLowerCase().trim();
-        debugBar.textContent = 'Method: JWT token | Email: ' + email;
-      }
-    } catch(e1) {
-      try {
-        // Method 2: getUserRef — available in newer Grist versions
-        if (typeof grist.getUserRef === 'function') {
-          const ref = await grist.getUserRef();
-          debugBar.textContent = 'Method: getUserRef | Ref: ' + JSON.stringify(ref);
+      // Same exact pattern used in EMR Access widget
+      if (typeof grist.getUser === 'function') {
+        const u = await grist.getUser();
+        if (u) {
+          const name  = u.name  || u.Name  || u.fullName  || '';
+          const email = u.email || u.Email || u.loginEmail || '';
+          currentUserEmail = email.toLowerCase().trim();
+          debugBar.textContent = 'getUser email: ' + currentUserEmail + ' | raw: ' + JSON.stringify(u);
         } else {
-          debugBar.textContent = 'No user detection method available. Available methods: ' +
-            Object.keys(grist).filter(k => typeof grist[k] === 'function').join(', ');
+          debugBar.textContent = 'getUser returned null/undefined';
         }
-      } catch(e2) {
-        debugBar.textContent = 'All methods failed: ' + e1.message + ' | ' + e2.message;
+      } else {
+        // List all available grist methods for debugging
+        const methods = Object.keys(grist).filter(k => typeof grist[k] === 'function').join(', ');
+        debugBar.textContent = 'getUser not found. Available: ' + methods;
       }
+    } catch(e) {
+      debugBar.textContent = 'getUser error: ' + e.message;
     }
 
-    const isAdmin = ADMIN_EMAILS.map(e => e.toLowerCase()).includes(email);
+    const isAdmin = ADMIN_EMAILS.includes(currentUserEmail);
     document.getElementById('adminActions').style.display = isAdmin ? 'flex' : 'none';
 
     await loadLog();
