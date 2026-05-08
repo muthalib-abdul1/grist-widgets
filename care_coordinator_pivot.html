@@ -113,9 +113,6 @@ tbody td:first-child {
   let cachedWeekIdToLabel = {};
   let allCoordinators = [];
 
-  // allowSelectBy: true  →  this widget appears in other widgets' SELECT BY list
-  // When a button is clicked we call grist.setSelectedRows(ids) with matching
-  // Week_List row IDs, which filters every widget whose SELECT BY = this widget.
   grist.ready({ requiredAccess: 'full', allowSelectBy: true });
 
   grist.onRecords(async (records) => {
@@ -123,10 +120,16 @@ tbody td:first-child {
       const wl = await grist.docApi.fetchTable('Week_List');
       cachedWL = wl;
 
-      const weeksTable = await grist.docApi.fetchTable('Weeks_Table');
+      // Build week labels directly from Week_List using Week_Value
+      // (the display text of the Week reference column e.g. "Week 15 - 04/05/2026")
+      // This removes the need to fetch Weeks_Table entirely.
       cachedWeekIdToLabel = {};
-      for (let i = 0; i < weeksTable.id.length; i++) {
-        cachedWeekIdToLabel[weeksTable.id[i]] = weeksTable.Week[i];
+      for (let i = 0; i < wl.id.length; i++) {
+        const weekId = wl.Week ? wl.Week[i] : null;
+        const weekVal = wl.Week_Value ? wl.Week_Value[i] : null;
+        if (weekId && !cachedWeekIdToLabel[weekId]) {
+          cachedWeekIdToLabel[weekId] = weekVal || String(weekId);
+        }
       }
 
       buildTable();
@@ -168,18 +171,14 @@ tbody td:first-child {
 
     const wl = cachedWL;
     if (cc === null) {
-      // null = clear filter, show all rows in linked widgets
       grist.setSelectedRows(null);
     } else if (wl && wl.id) {
-      // Collect every Week_List row ID whose Care_Coordinator matches
       const ids = [];
       for (let i = 0; i < wl.id.length; i++) {
         if (getVal(wl, 'Care_Coordinator', i) === cc) {
           ids.push(wl.id[i]);
         }
       }
-      // Pass those IDs to Grist — linked widgets (Backlogs List, Backlogs Card)
-      // will filter themselves to show only these rows.
       grist.setSelectedRows(ids);
     }
 
