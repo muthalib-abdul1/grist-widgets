@@ -103,8 +103,8 @@ tbody td.ts { color: #666; font-size: 9px; }
   </div>
 </div>
 
-<!-- Temporary debug bar — remove after confirming email -->
-<div class="debug-bar" id="debugBar">Detecting user…</div>
+<!-- Temporary debug bar — remove after confirming -->
+<div class="debug-bar" id="debugBar" style="display:none;"></div>
 
 <div class="table-wrap">
   <div class="loading" id="loadingMsg">Loading…</div>
@@ -127,19 +127,24 @@ tbody td.ts { color: #666; font-size: 9px; }
   grist.ready({ requiredAccess: 'full' });
 
   async function init() {
+    let email = '';
     try {
-      const u = await grist.getUser();
-      const email = (u?.email || u?.loginEmail || '').toLowerCase().trim();
-      const isAdmin = ADMIN_EMAILS.map(e => e.toLowerCase()).includes(email);
+      if (typeof grist.getUser === 'function') {
+        const u = await grist.getUser();
+        if (u) {
+          email = (u.email || u.Email || u.loginEmail || '').toLowerCase().trim();
+        }
+      }
+    } catch(e) {}
 
-      // Debug bar — shows detected email so you can confirm it matches
-      document.getElementById('debugBar').textContent = 'Logged in as: ' + email + ' | Admin: ' + isAdmin;
+    // Debug bar — shows detected email
+    const debugBar = document.getElementById('debugBar');
+    debugBar.style.display = 'block';
+    debugBar.textContent = 'Logged in as: ' + (email || '(not detected)');
 
-      document.getElementById('adminActions').style.display = isAdmin ? 'flex' : 'none';
-    } catch(e) {
-      document.getElementById('debugBar').textContent = 'Error getting user: ' + e.message;
-      document.getElementById('adminActions').style.display = 'none';
-    }
+    const isAdmin = ADMIN_EMAILS.map(e => e.toLowerCase()).includes(email);
+    document.getElementById('adminActions').style.display = isAdmin ? 'flex' : 'none';
+
     await loadLog();
   }
 
