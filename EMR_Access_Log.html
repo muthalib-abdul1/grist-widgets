@@ -65,12 +65,33 @@ tbody td.ts { color: #666; font-size: 9px; }
 <script>
   grist.ready({ requiredAccess: 'full' });
 
-  // Show admin buttons only for users with full access (Owners)
-  grist.onOptions(function(options, interaction) {
-    const accessLevel = interaction && interaction.accessLevel;
-    const isAdmin = accessLevel === 'full';
+  async function checkAdminAccess() {
+    try {
+      // Try to add and immediately remove a dummy record
+      // If user is a Viewer, this will throw due to access rules denying Create on EMR_Access_Log
+      // Actually Viewers CAN create (we allowed Create for all) — so try Delete instead
+      // We do a dry-run delete of a non-existent row ID — error message differs by access level
+      await grist.docApi.applyUserActions([
+        ['RemoveRecord', 'EMR_Access_Log', -999999]
+      ]);
+      // If we get here without error, user can delete — they are admin
+      return true;
+    } catch(e) {
+      // If error contains 'not allowed' or 'access', user is not admin
+      const msg = (e.message || '').toLowerCase();
+      if (msg.includes('not allowed') || msg.includes('access') || msg.includes('permission')) {
+        return false;
+      }
+      // Any other error (like record not found) means delete was attempted = admin
+      return true;
+    }
+  }
+
+  async function init() {
+    const isAdmin = await checkAdminAccess();
     document.getElementById('adminActions').style.display = isAdmin ? 'flex' : 'none';
-  });
+    await loadLog();
+  }
 
   grist.onRecords(() => loadLog());
 
@@ -145,7 +166,7 @@ tbody td.ts { color: #666; font-size: 9px; }
     } catch(e) { alert('Export error: ' + e.message); }
   }
 
-  loadLog();
+  init();
 </script>
 </body>
 </html>
