@@ -120,16 +120,11 @@ tbody td:first-child {
       const wl = await grist.docApi.fetchTable('Week_List');
       cachedWL = wl;
 
-      // Build week labels directly from Week_List using Week_Value
-      // (the display text of the Week reference column e.g. "Week 15 - 04/05/2026")
-      // This removes the need to fetch Weeks_Table entirely.
+      // Fetch Weeks_Table for week label lookup
+      const weeksTable = await grist.docApi.fetchTable('Weeks_Table');
       cachedWeekIdToLabel = {};
-      for (let i = 0; i < wl.id.length; i++) {
-        const weekId = wl.Week ? wl.Week[i] : null;
-        const weekVal = wl.Week_Value ? wl.Week_Value[i] : null;
-        if (weekId && !cachedWeekIdToLabel[weekId]) {
-          cachedWeekIdToLabel[weekId] = weekVal || String(weekId);
-        }
+      for (let i = 0; i < weeksTable.id.length; i++) {
+        cachedWeekIdToLabel[weeksTable.id[i]] = weeksTable.Week[i];
       }
 
       buildTable();
