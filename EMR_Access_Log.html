@@ -31,7 +31,6 @@ tbody td.ts { color: #666; font-size: 9px; }
 .loading { padding: 20px; text-align: center; font-family: 'DM Mono', monospace; font-size: 11px; color: #aaa; }
 .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #2d6a4f; display: inline-block; animation: pulse 2s infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
-.debug-bar { font-family: 'DM Mono', monospace; font-size: 10px; background: #fff3dc; border: 1px solid #f0d080; border-radius: 6px; padding: 5px 10px; color: #7a5c00; word-break: break-all; }
 </style>
 </head>
 <body>
@@ -47,9 +46,6 @@ tbody td.ts { color: #666; font-size: 9px; }
     <button class="btn-sm" onclick="clearLog()">🗑 Clear</button>
   </div>
 </div>
-
-<!-- Debug bar — remove once confirmed working -->
-<div class="debug-bar" id="debugBar">Detecting access level…</div>
 
 <div class="table-wrap">
   <div class="loading" id="loadingMsg">Loading…</div>
@@ -69,43 +65,12 @@ tbody td.ts { color: #666; font-size: 9px; }
 <script>
   grist.ready({ requiredAccess: 'full' });
 
-  // grist.onOptions passes user access level — OWNERS and EDITORS can be distinguished
+  // Show admin buttons only for users with full access (Owners)
   grist.onOptions(function(options, interaction) {
-    const debugBar = document.getElementById('debugBar');
-    try {
-      const access = interaction && (interaction.access || interaction.accessLevel || '');
-      debugBar.textContent = 'onOptions interaction: ' + JSON.stringify(interaction);
-      // owners have 'full' access
-      const isAdmin = access === 'full' || access === 'OWNER';
-      document.getElementById('adminActions').style.display = isAdmin ? 'flex' : 'none';
-    } catch(e) {
-      debugBar.textContent = 'onOptions error: ' + e.message;
-    }
+    const accessLevel = interaction && interaction.accessLevel;
+    const isAdmin = accessLevel === 'full';
+    document.getElementById('adminActions').style.display = isAdmin ? 'flex' : 'none';
   });
-
-  async function init() {
-    // Also try via fetchSelectedTable user context
-    try {
-      // Try to write a test record and see if it succeeds — owners can always write
-      // Instead, check by trying to read a protected table
-      const debugBar = document.getElementById('debugBar');
-
-      // Check if user can delete (proxy for owner/admin)
-      // We do this by checking the access level from grist.ready callback
-      grist.ready({
-        requiredAccess: 'full',
-        onEditToken: function(editToken) {
-          const debugBar = document.getElementById('debugBar');
-          debugBar.textContent = 'editToken: ' + JSON.stringify(editToken);
-          // If edit token exists and is not null, user has write access
-          const isAdmin = editToken !== null && editToken !== undefined;
-          document.getElementById('adminActions').style.display = isAdmin ? 'flex' : 'none';
-        }
-      });
-    } catch(e) {}
-
-    await loadLog();
-  }
 
   grist.onRecords(() => loadLog());
 
@@ -134,7 +99,12 @@ tbody td.ts { color: #666; font-size: 9px; }
           ? new Date(ts * 1000).toLocaleString('en-US', { month:'2-digit', day:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' })
           : (ts || '—');
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td class="ts">${formatted}</td><td>${t.User_Name?.[i]||'—'}</td><td>${t.Practitioner?.[i]||'—'}</td><td>${t.Facility?.[i]||'—'}</td>`;
+        tr.innerHTML = `
+          <td class="ts">${formatted}</td>
+          <td>${t.User_Name?.[i]    || '—'}</td>
+          <td>${t.Practitioner?.[i] || '—'}</td>
+          <td>${t.Facility?.[i]     || '—'}</td>
+        `;
         tbody.appendChild(tr);
       });
     } catch(e) {
@@ -175,7 +145,7 @@ tbody td.ts { color: #666; font-size: 9px; }
     } catch(e) { alert('Export error: ' + e.message); }
   }
 
-  init();
+  loadLog();
 </script>
 </body>
 </html>
