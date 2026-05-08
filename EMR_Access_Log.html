@@ -48,7 +48,8 @@ tbody td.ts { color: #666; font-size: 9px; }
   </div>
 </div>
 
-<div class="debug-bar" id="debugBar">Detecting user…</div>
+<!-- Debug bar — remove once confirmed working -->
+<div class="debug-bar" id="debugBar">Detecting access level…</div>
 
 <div class="table-wrap">
   <div class="loading" id="loadingMsg">Loading…</div>
@@ -66,38 +67,43 @@ tbody td.ts { color: #666; font-size: 9px; }
 </div>
 
 <script>
-  const ADMIN_EMAILS = ['mabdul@idsolns.com', 'oaboyeji@idsolns.com'];
-
   grist.ready({ requiredAccess: 'full' });
 
-  async function init() {
+  // grist.onOptions passes user access level — OWNERS and EDITORS can be distinguished
+  grist.onOptions(function(options, interaction) {
     const debugBar = document.getElementById('debugBar');
-    let email = '';
-
     try {
-      const tokenObj = await grist.getAccessToken({ readOnly: true });
-      const token = typeof tokenObj === 'string' ? tokenObj : (tokenObj.token || tokenObj.access_token || JSON.stringify(tokenObj));
-
-      // Try to decode JWT payload
-      try {
-        const parts = token.split('.');
-        if (parts.length === 3) {
-          const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-          // Show ALL fields in the payload so we can find the email
-          debugBar.textContent = 'JWT payload: ' + JSON.stringify(payload);
-          email = (payload.email || payload.sub || payload.userId || payload.id || '').toLowerCase().trim();
-        } else {
-          debugBar.textContent = 'Token (not JWT): ' + token.substring(0, 150);
-        }
-      } catch(decodeErr) {
-        debugBar.textContent = 'Token object: ' + JSON.stringify(tokenObj).substring(0, 200);
-      }
+      const access = interaction && (interaction.access || interaction.accessLevel || '');
+      debugBar.textContent = 'onOptions interaction: ' + JSON.stringify(interaction);
+      // owners have 'full' access
+      const isAdmin = access === 'full' || access === 'OWNER';
+      document.getElementById('adminActions').style.display = isAdmin ? 'flex' : 'none';
     } catch(e) {
-      debugBar.textContent = 'getAccessToken error: ' + e.message;
+      debugBar.textContent = 'onOptions error: ' + e.message;
     }
+  });
 
-    const isAdmin = ADMIN_EMAILS.map(e => e.toLowerCase()).includes(email);
-    document.getElementById('adminActions').style.display = isAdmin ? 'flex' : 'none';
+  async function init() {
+    // Also try via fetchSelectedTable user context
+    try {
+      // Try to write a test record and see if it succeeds — owners can always write
+      // Instead, check by trying to read a protected table
+      const debugBar = document.getElementById('debugBar');
+
+      // Check if user can delete (proxy for owner/admin)
+      // We do this by checking the access level from grist.ready callback
+      grist.ready({
+        requiredAccess: 'full',
+        onEditToken: function(editToken) {
+          const debugBar = document.getElementById('debugBar');
+          debugBar.textContent = 'editToken: ' + JSON.stringify(editToken);
+          // If edit token exists and is not null, user has write access
+          const isAdmin = editToken !== null && editToken !== undefined;
+          document.getElementById('adminActions').style.display = isAdmin ? 'flex' : 'none';
+        }
+      });
+    } catch(e) {}
+
     await loadLog();
   }
 
