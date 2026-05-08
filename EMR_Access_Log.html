@@ -17,7 +17,6 @@ body {
   flex-direction: column;
   gap: 12px;
 }
-
 .header {
   display: flex; align-items: center; justify-content: space-between;
 }
@@ -39,37 +38,49 @@ body {
   transition: all 0.15s;
 }
 .btn-sm:hover { border-color: #b35a0a; color: #b35a0a; background: #fde8d0; }
-.btn-sm.export { }
 .btn-sm.export:hover { border-color: #2d6a4f; color: #2d6a4f; background: #e8f5e9; }
 
 .table-wrap {
-  border-radius: 10px; border: 1px solid #e0deda;
-  background: #fff; overflow: hidden; overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid #e0deda;
+  background: #fff;
+  overflow: hidden;
+  overflow-x: auto;
   flex: 1;
 }
-table { width: 100%; border-collapse: collapse; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
 thead th {
   background: #1a1916; color: #fff;
   padding: 8px 12px;
   font-family: 'DM Mono', monospace; font-size: 10px;
-  font-weight: 500; text-align: left;
+  font-weight: 500; text-align: center;
   white-space: nowrap; letter-spacing: 0.04em;
   position: sticky; top: 0;
+  border-right: 1px solid rgba(255,255,255,0.08);
 }
-tbody tr { border-bottom: 1px solid #f0eeea; }
+thead th:last-child { border-right: none; }
+
+/* Zebra rows */
+tbody tr:nth-child(odd)  { background: #ffffff; }
+tbody tr:nth-child(even) { background: #f7f6f3; }
+tbody tr:hover { background: #eef5f1; }
+
+/* Faint grid lines */
+tbody tr { border-bottom: 1px solid #eeece8; }
 tbody tr:last-child { border-bottom: none; }
-tbody tr:hover { background: #fafaf8; }
 tbody td {
   padding: 7px 12px;
   font-family: 'DM Mono', monospace; font-size: 10px;
   color: #111; white-space: nowrap;
+  text-align: center;
+  border-right: 1px solid #f0eeea;
 }
+tbody td:last-child { border-right: none; }
 tbody td.ts { color: #666; font-size: 9px; }
 
-.empty {
-  padding: 32px; text-align: center;
-  font-family: 'DM Mono', monospace; font-size: 11px; color: #bbb;
-}
 .loading {
   padding: 20px; text-align: center;
   font-family: 'DM Mono', monospace; font-size: 11px; color: #aaa;
@@ -90,7 +101,7 @@ tbody td.ts { color: #666; font-size: 9px; }
     EMR Access Log
     <span class="count-badge" id="countBadge">—</span>
   </div>
-  <div class="actions">
+  <div class="actions" id="adminActions" style="display:none;">
     <button class="btn-sm export" onclick="exportCSV()">⬇ Export CSV</button>
     <button class="btn-sm" onclick="clearLog()">🗑 Clear</button>
   </div>
@@ -103,7 +114,6 @@ tbody td.ts { color: #666; font-size: 9px; }
       <tr>
         <th>Timestamp</th>
         <th>User Name</th>
-        <th>Email</th>
         <th>Practitioner</th>
         <th>Facility</th>
       </tr>
@@ -113,18 +123,31 @@ tbody td.ts { color: #666; font-size: 9px; }
 </div>
 
 <script>
+  const ADMIN_EMAILS = ['mabdul@idsolns.com', 'oaboyeji@idsolns.com'];
+
   grist.ready({ requiredAccess: 'full' });
 
-  // Auto-refresh whenever any record changes in the doc
+  async function init() {
+    try {
+      const u = await grist.getUser();
+      const email = (u?.email || u?.loginEmail || '').toLowerCase().trim();
+      const isAdmin = ADMIN_EMAILS.map(e => e.toLowerCase()).includes(email);
+      document.getElementById('adminActions').style.display = isAdmin ? 'flex' : 'none';
+    } catch(e) {
+      document.getElementById('adminActions').style.display = 'none';
+    }
+    await loadLog();
+  }
+
   grist.onRecords(() => loadLog());
 
   async function loadLog() {
     try {
-      const t = await grist.docApi.fetchTable('EMR_Access_Log');
-      const tbody  = document.getElementById('logBody');
-      const table  = document.getElementById('logTable');
+      const t       = await grist.docApi.fetchTable('EMR_Access_Log');
+      const tbody   = document.getElementById('logBody');
+      const table   = document.getElementById('logTable');
       const loading = document.getElementById('loadingMsg');
-      const badge  = document.getElementById('countBadge');
+      const badge   = document.getElementById('countBadge');
 
       loading.style.display = 'none';
 
@@ -154,7 +177,6 @@ tbody td.ts { color: #666; font-size: 9px; }
         tr.innerHTML = `
           <td class="ts">${formatted}</td>
           <td>${t.User_Name?.[i]    || '—'}</td>
-          <td>${t.User_Email?.[i]   || '—'}</td>
           <td>${t.Practitioner?.[i] || '—'}</td>
           <td>${t.Facility?.[i]     || '—'}</td>
         `;
@@ -185,7 +207,8 @@ tbody td.ts { color: #666; font-size: 9px; }
     try {
       const t = await grist.docApi.fetchTable('EMR_Access_Log');
       if (!t.id || !t.id.length) return;
-      const headers = ['Timestamp','User Name','Email','Practitioner','Facility'];
+      // Email included in export only
+      const headers = ['Timestamp', 'User Name', 'Email', 'Practitioner', 'Facility'];
       const indices = [...Array(t.id.length).keys()].reverse();
       const rows = indices.map(i => {
         const ts = t.Timestamp?.[i];
@@ -207,7 +230,7 @@ tbody td.ts { color: #666; font-size: 9px; }
     } catch(e) { alert('Export error: ' + e.message); }
   }
 
-  loadLog();
+  init();
 </script>
 </body>
 </html>
