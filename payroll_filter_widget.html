@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Payroll Session Filter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+<style>
+  :root {
+    --bg: #f4f6f8;
+    --surface: #ffffff;
+    --border: #dde3ec;
+    --accent: #0d7377;
+    --accent-hover: #0a5c60;
+    --accent-light: #e6f4f4;
+    --text: #1a2332;
+    --muted: #64748b;
+    --success: #059669;
+    --warn-bg: #fffbeb;
+    --warn-border: #fde68a;
+    --warn-text: #92400e;
+    --font: 'IBM Plex Sans', sans-serif;
+    --mono: 'IBM Plex Mono', monospace;
+    --r: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .header-icon {
+    width: 36px; height: 36px;
+    background: var(--accent);
+    border-radius: var(--r);
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-size: 17px; flex-shrink: 0;
+  }
+  .header h1 { font-size: 15px; font-weight: 600; }
+  .header p  { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+  /* ── Settings warning ── */
+  .warn-bar {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 20px;
+    background: var(--warn-bg);
+    border-bottom: 1px solid var(--warn-border);
+    font-size: 12px;
+    color: var(--warn-text);
+    flex-wrap: wrap;
+  }
+  .warn-bar input {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 4px 8px;
+    border: 1px solid var(--warn-border);
+    border-radius: 4px;
+    background: white;
+    color: var(--text);
+    width: 210px;
+  }
+
+  /* ── Filter panel ── */
+  .filter-panel {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 20px;
+  }
+  .filter-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .filter-group label {
+    font-size: 10px; font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  input[type="date"],
+  input[type="time"] {
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    background: var(--bg);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+    height: 34px;
+  }
+  input[type="date"]:focus,
+  input[type="time"]:focus { border-color: var(--accent); }
+
+  .range-sep {
+    color: var(--muted);
+    font-size: 13px;
+    padding-bottom: 7px;
+  }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 0 14px;
+    height: 34px;
+    border-radius: var(--r);
+    font-family: var(--font);
+    font-size: 13px; font-weight: 500;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: background 0.15s, border-color 0.15s;
+    white-space: nowrap;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+  }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-outline {
+    background: transparent;
+    color: var(--muted);
+    border-color: var(--border);
+  }
+  .btn-outline:hover { background: var(--bg); }
+
+  /* ── Status bar ── */
+  .status-bar {
+    padding: 6px 20px;
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #94a3b8;
+    flex-shrink: 0;
+  }
+  .dot.ok      { background: var(--success); }
+  .dot.error   { background: #ef4444; }
+  .dot.loading { background: #f59e0b; animation: blink 1s ease infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
+
+  /* ── Summary cards ── */
+  .summary {
+    display: flex;
+    gap: 10px;
+    padding: 12px 20px;
+    flex-wrap: wrap;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 10px 14px;
+    flex: 1;
+    min-width: 120px;
+  }
+  .card.accent {
+    border-color: var(--accent);
+    background: var(--accent-light);
+  }
+  .card .clabel {
+    font-size: 10px; font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 4px;
+  }
+  .card.accent .clabel { color: var(--accent); }
+  .card .cval {
+    font-family: var(--mono);
+    font-size: 20px; font-weight: 500;
+    color: var(--text);
+  }
+  .card.accent .cval { color: var(--accent); }
+
+  /* ── Table ── */
+  .table-wrap {
+    padding: 0 20px 24px;
+    overflow-x: auto;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--surface);
+    border-radius: var(--r);
+    border: 1px solid var(--border);
+    font-size: 12px;
+    overflow: hidden;
+    table-layout: auto;
+  }
+  thead { background: #f0f3f8; }
+  th {
+    padding: 9px 12px;
+    text-align: left;
+    font-size: 10px; font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  td {
+    padding: 7px 12px;
+    border-bottom: 1px solid #f0f3f8;
+    color: var(--text);
+    white-space: nowrap;
+  }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: #f8fafc; }
+  .mono { font-family: var(--mono); }
+  .dur  { font-family: var(--mono); color: var(--accent); font-weight: 500; }
+  .num  { font-family: var(--mono); color: var(--muted); font-size: 11px; }
+  .act  { font-family: var(--mono); }
+
+  /* ── Empty / loading states ── */
+  .empty {
+    display: none;
+    padding: 48px 20px;
+    text-align: center;
+    color: var(--muted);
+  }
+  .empty .eicon { font-size: 28px; margin-bottom: 10px; }
+  .empty h3 { font-size: 14px; font-weight: 500; margin-bottom: 4px; color: var(--text); }
+  .empty p  { font-size: 12px; }
+
+  .loading-state {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-icon">⏱</div>
+  <div>
+    <h1>Payroll Session Filter</h1>
+    <p>Filter work sessions within a date &amp; time range — entries after 5 PM excluded by default</p>
+  </div>
+</div>
+
+<!-- Settings warning (shown if table not found) -->
+<div class="warn-bar" id="warn-bar">
+  ⚠️ Table not found. Enter the exact Grist table ID:
+  <input type="text" id="tbl-input" placeholder="Work_Sessions_Report" />
+  <button class="btn btn-outline" onclick="retryLoad()">Retry</button>
+</div>
+
+<!-- Filter controls -->
+<div class="filter-panel">
+  <div class="filter-row">
+    <div class="filter-group">
+      <label>Start Date</label>
+      <input type="date" id="s-date">
+    </div>
+    <div class="filter-group">
+      <label>Start Time</label>
+      <input type="time" id="s-time" value="00:00">
+    </div>
+    <div class="range-sep">→</div>
+    <div class="filter-group">
+      <label>End Date</label>
+      <input type="date" id="e-date">
+    </div>
+    <div class="filter-group">
+      <label>End Time</label>
+      <input type="time" id="e-time" value="17:00">
+    </div>
+    <button class="btn btn-primary" onclick="applyFilter()">▶ Apply Filter</button>
+    <button class="btn btn-outline" onclick="exportCSV()">↓ Export CSV</button>
+  </div>
+</div>
+
+<!-- Status -->
+<div class="status-bar">
+  <span class="dot loading" id="dot"></span>
+  <span id="status-msg">Connecting to Grist…</span>
+</div>
+
+<!-- Summary cards -->
+<div class="summary" id="summary" style="display:none">
+  <div class="card accent">
+    <div class="clabel">Total Duration</div>
+    <div class="cval" id="c-dur">—</div>
+  </div>
+  <div class="card">
+    <div class="clabel">Sessions</div>
+    <div class="cval" id="c-sessions">—</div>
+  </div>
+  <div class="card">
+    <div class="clabel">Members</div>
+    <div class="cval" id="c-members">—</div>
+  </div>
+  <div class="card">
+    <div class="clabel">Avg Activity</div>
+    <div class="cval" id="c-activity">—</div>
+  </div>
+</div>
+
+<!-- Data table -->
+<div class="table-wrap" id="tbl-wrap" style="display:none">
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Member</th>
+        <th>Organization</th>
+        <th>Date</th>
+        <th>Project</th>
+        <th>Started</th>
+        <th>Stopped</th>
+        <th>Duration</th>
+        <th>Activity</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<!-- Empty state -->
+<div class="empty" id="empty">
+  <div class="eicon">🔍</div>
+  <h3>No sessions found</h3>
+  <p>Adjust the date/time range and try again.</p>
+</div>
+
+<!-- Loading placeholder -->
+<div class="loading-state" id="loading-state">Loading data from Grist…</div>
+
+<script>
+  var allRecs = [];
+  var filtered = [];
+  var tableName = 'Work_Sessions_Report';
+
+  /* ── Date helpers ── */
+  function defaultDates() {
+    var today = new Date();
+    var start = new Date(today);
+    start.setDate(today.getDate() - 14);
+    document.getElementById('s-date').value = toDateStr(start);
+    document.getElementById('e-date').value = toDateStr(today);
+  }
+
+  function toDateStr(d) {
+    return d.toISOString().slice(0, 10);
+  }
+
+  function parseGristDT(val) {
+    if (val == null || val === '') return null;
+    if (typeof val === 'number') {
+      /* Grist DateTime columns are Unix seconds */
+      return new Date(val * 1000);
+    }
+    if (typeof val === 'string') {
+      var d = new Date(val);
+      return isNaN(d.getTime()) ? null : d;
+    }
+    return null;
+  }
+
+  function fmtTime(d) {
+    if (!d) return '—';
+    var h = String(d.getHours()).padStart(2,'0');
+    var m = String(d.getMinutes()).padStart(2,'0');
+    var s = String(d.getSeconds()).padStart(2,'0');
+    return h + ':' + m + ':' + s;
+  }
+
+  function fmtDate(d) {
+    if (!d) return '—';
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function fmtDur(sec) {
+    if (sec == null || isNaN(sec)) return '—';
+    sec = Math.round(sec);
+    var h = Math.floor(sec / 3600);
+    var m = Math.floor((sec % 3600) / 60);
+    var s = sec % 60;
+    return h + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+  }
+
+  function fmtActivity(val) {
+    if (val == null) return '—';
+    if (typeof val === 'string') return val;
+    if (typeof val === 'number') {
+      /* Grist Percent columns store as 0.0–1.0 */
+      var pct = val <= 1 ? Math.round(val * 100) : Math.round(val);
+      return pct + '%';
+    }
+    return '—';
+  }
+
+  function totalDurSec(recs) {
+    return recs.reduce(function(s, r) {
+      return s + (typeof r._dur === 'number' ? r._dur : 0);
+    }, 0);
+  }
+
+  /* ── Status ── */
+  function setStatus(type, msg) {
+    var dot = document.getElementById('dot');
+    dot.className = 'dot ' + type;
+    document.getElementById('status-msg').textContent = msg;
+  }
+
+  /* ── Load data ── */
+  function loadData() {
+    document.getElementById('loading-state').style.display = 'block';
+    grist.docApi.fetchTable(tableName).then(function(data) {
+      document.getElementById('loading-state').style.display = 'none';
+      document.getElementById('warn-bar').style.display = 'none';
+      buildRecords(data);
+    }).catch(function(err) {
+      document.getElementById('loading-state').style.display = 'none';
+      setStatus('error', 'Could not load table "' + tableName + '". Check the table ID in the warning bar.');
+      document.getElementById('warn-bar').style.display = 'flex';
+      document.getElementById('tbl-input').value = tableName;
+    });
+  }
+
+  function retryLoad() {
+    var v = (document.getElementById('tbl-input').value || '').trim();
+    if (v) tableName = v;
+    setStatus('loading', 'Retrying…');
+    loadData();
+  }
+
+  /* ── Build internal record array ── */
+  function buildRecords(data) {
+    var keys = Object.keys(data);
+    var len = data[keys[0]] ? data[keys[0]].length : 0;
+
+    /* Find columns case-insensitively */
+    var lmap = {};
+    keys.forEach(function(k) { lmap[k.toLowerCase()] = k; });
+
+    var K = {
+      started:  lmap['started']      || lmap['start']      || lmap['started_at']  || null,
+      stopped:  lmap['stopped']      || lmap['stop']       || lmap['stopped_at']  || null,
+      duration: lmap['duration']     || lmap['dur']        || null,
+      member:   lmap['member']       || lmap['employee']   || null,
+      org:      lmap['organization'] || lmap['org']        || null,
+      date:     lmap['date']         || null,
+      project:  lmap['project']      || null,
+      activity: lmap['activity']     || null,
+    };
+
+    allRecs = [];
+    for (var i = 0; i < len; i++) {
+      allRecs.push({
+        _i:       i,
+        _started: K.started  ? parseGristDT(data[K.started][i])  : null,
+        _stopped: K.stopped  ? parseGristDT(data[K.stopped][i])  : null,
+        _dur:     K.duration ? data[K.duration][i]                : null,
+        member:   K.member   ? data[K.member][i]                  : '',
+        org:      K.org      ? data[K.org][i]                     : '',
+        date:     K.date     ? data[K.date][i]                    : null,
+        project:  K.project  ? data[K.project][i]                 : '',
+        activity: K.activity ? data[K.activity][i]                : null,
+      });
+    }
+
+    setStatus('ok', 'Loaded ' + allRecs.length + ' records. Set the date range and click Apply Filter.');
+    applyFilter();
+  }
+
+  /* ── Filter & render ── */
+  function applyFilter() {
+    var sd = document.getElementById('s-date').value;
+    var st = document.getElementById('s-time').value || '00:00';
+    var ed = document.getElementById('e-date').value;
+    var et = document.getElementById('e-time').value || '17:00';
+
+    if (!sd || !ed) {
+      setStatus('loading', 'Please select start and end dates.');
+      return;
+    }
+
+    var rangeStart = new Date(sd + 'T' + st + ':00');
+    var rangeEnd   = new Date(ed + 'T' + et + ':00');
+
+    if (rangeStart > rangeEnd) {
+      setStatus('error', 'Start date/time must be before end date/time.');
+      return;
+    }
+
+    filtered = allRecs.filter(function(r) {
+      if (!r._started) return false;
+      return r._started >= rangeStart && r._started <= rangeEnd;
+    });
+
+    renderSummary();
+    renderTable();
+  }
+
+  function renderSummary() {
+    document.getElementById('summary').style.display = 'flex';
+
+    var totSec = totalDurSec(filtered);
+    document.getElementById('c-dur').textContent = fmtDur(totSec);
+    document.getElementById('c-sessions').textContent = filtered.length.toLocaleString();
+
+    var members = {};
+    filtered.forEach(function(r) { if (r.member) members[r.member] = 1; });
+    document.getElementById('c-members').textContent = Object.keys(members).length;
+
+    var acts = filtered.map(function(r) {
+      if (r.activity == null) return null;
+      if (typeof r.activity === 'number') return r.activity <= 1 ? r.activity * 100 : r.activity;
+      return null;
+    }).filter(function(v) { return v !== null; });
+    var avg = acts.length ? Math.round(acts.reduce(function(a,b){return a+b},0) / acts.length) : null;
+    document.getElementById('c-activity').textContent = avg !== null ? avg + '%' : '—';
+  }
+
+  function renderTable() {
+    var wrap  = document.getElementById('tbl-wrap');
+    var empty = document.getElementById('empty');
+    var tbody = document.getElementById('tbody');
+
+    if (filtered.length === 0) {
+      wrap.style.display  = 'none';
+      empty.style.display = 'block';
+      setStatus('ok', 'No sessions match this range.');
+      return;
+    }
+
+    empty.style.display = 'none';
+    wrap.style.display  = 'block';
+
+    var rows = filtered.map(function(r, idx) {
+      var actStr = fmtActivity(r.activity);
+      var actColor = '';
+      if (typeof r.activity === 'number') {
+        var pct = r.activity <= 1 ? r.activity * 100 : r.activity;
+        if (pct === 0)       actColor = 'color:#94a3b8';
+        else if (pct < 70)   actColor = 'color:#ef4444';
+        else if (pct < 85)   actColor = 'color:#f59e0b';
+        else                 actColor = 'color:#059669';
+      }
+      return '<tr>' +
+        '<td class="num">' + (idx + 1) + '</td>' +
+        '<td>' + esc(r.member || '—') + '</td>' +
+        '<td style="color:var(--muted)">' + esc(r.org || '—') + '</td>' +
+        '<td class="mono">' + (r._started ? fmtDate(r._started) : '—') + '</td>' +
+        '<td>' + esc(r.project || '—') + '</td>' +
+        '<td class="mono">' + (r._started ? fmtTime(r._started) : '—') + '</td>' +
+        '<td class="mono">' + (r._stopped ? fmtTime(r._stopped) : '—') + '</td>' +
+        '<td class="dur">'  + fmtDur(r._dur) + '</td>' +
+        '<td class="act" style="' + actColor + '">' + actStr + '</td>' +
+      '</tr>';
+    }).join('');
+
+    tbody.innerHTML = rows;
+    setStatus('ok', 'Showing ' + filtered.length + ' of ' + allRecs.length + ' records');
+  }
+
+  function esc(str) {
+    return String(str)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;');
+  }
+
+  /* ── CSV export ── */
+  function exportCSV() {
+    if (filtered.length === 0) { alert('No records to export.'); return; }
+
+    var headers = ['#','Member','Organization','Date','Project','Started','Stopped','Duration','Activity'];
+    var rowsArr = filtered.map(function(r, i) {
+      return [
+        i + 1,
+        r.member || '',
+        r.org    || '',
+        r._started ? fmtDate(r._started)    : '',
+        r.project  || '',
+        r._started ? r._started.toISOString() : '',
+        r._stopped ? r._stopped.toISOString() : '',
+        fmtDur(r._dur),
+        fmtActivity(r.activity)
+      ];
+    });
+
+    var csvLines = [headers].concat(rowsArr).map(function(row) {
+      return row.map(function(v) {
+        return '"' + String(v).replace(/"/g,'""') + '"';
+      }).join(',');
+    }).join('\r\n');
+
+    var blob = new Blob([csvLines], { type: 'text/csv' });
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement('a');
+    a.href      = url;
+    a.download  = 'payroll_sessions.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  /* ── Init ── */
+  defaultDates();
+  grist.ready({ requiredAccess: 'read table' });
+  loadData();
+</script>
+</body>
+</html>
