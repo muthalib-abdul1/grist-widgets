@@ -335,13 +335,10 @@
       <tr>
         <th>#</th>
         <th>Member</th>
-        <th>Organization</th>
-        <th>Date</th>
-        <th>Project</th>
-        <th>Started</th>
-        <th>Stopped</th>
-        <th>Duration</th>
-        <th>Activity</th>
+        <th>Sessions</th>
+        <th>Date Range</th>
+        <th>Total Duration</th>
+        <th>Avg Activity</th>
       </tr>
     </thead>
     <tbody id="tbody"></tbody>
@@ -399,7 +396,10 @@
 
   function fmtDate(d) {
     if (!d) return '—';
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    var m = String(d.getMonth() + 1).padStart(2,'0');
+    var day = String(d.getDate()).padStart(2,'0');
+    var y = d.getFullYear();
+    return m + '/' + day + '/' + y;
   }
 
   function fmtDur(sec) {
@@ -525,23 +525,52 @@
     renderTable();
   }
 
+  /* ── Group filtered records by member ── */
+  function groupByMember(recs) {
+    var map = {};
+    recs.forEach(function(r) {
+      var name = r.member || '(unknown)';
+      if (!map[name]) map[name] = { member: name, sessions: [], firstDate: null, lastDate: null, totalSec: 0, actSum: 0, actCount: 0 };
+      var g = map[name];
+      g.sessions.push(r);
+
+      /* Duration from stopped - started */
+      if (r._started && r._stopped) {
+        var sec = (r._stopped - r._started) / 1000;
+        if (sec > 0) g.totalSec += sec;
+      }
+
+      /* Activity average */
+      if (r.activity != null && typeof r.activity === 'number') {
+        var pct = r.activity <= 1 ? r.activity * 100 : r.activity;
+        g.actSum += pct;
+        g.actCount++;
+      }
+
+      /* Date range */
+      if (r._started) {
+        if (!g.firstDate || r._started < g.firstDate) g.firstDate = r._started;
+        if (!g.lastDate  || r._started > g.lastDate)  g.lastDate  = r._started;
+      }
+    });
+
+    /* Sort members alphabetically */
+    return Object.keys(map).sort().map(function(k) { return map[k]; });
+  }
+
   function renderSummary() {
     document.getElementById('summary').style.display = 'flex';
+    var groups = groupByMember(filtered);
 
-    var totSec = totalDurSec(filtered);
+    var totSec = groups.reduce(function(s, g) { return s + g.totalSec; }, 0);
     document.getElementById('c-dur').textContent = fmtDur(totSec);
     document.getElementById('c-sessions').textContent = filtered.length.toLocaleString();
+    document.getElementById('c-members').textContent = groups.length;
 
-    var members = {};
-    filtered.forEach(function(r) { if (r.member) members[r.member] = 1; });
-    document.getElementById('c-members').textContent = Object.keys(members).length;
-
-    var acts = filtered.map(function(r) {
-      if (r.activity == null) return null;
-      if (typeof r.activity === 'number') return r.activity <= 1 ? r.activity * 100 : r.activity;
-      return null;
-    }).filter(function(v) { return v !== null; });
-    var avg = acts.length ? Math.round(acts.reduce(function(a,b){return a+b},0) / acts.length) : null;
+    var allActs = groups.filter(function(g) { return g.actCount > 0; });
+    var avg = allActs.length
+      ? Math.round(allActs.reduce(function(s, g) { return s + g.actSum / g.actCount; }, 0) / allActs.length)
+      : null;
     document.getElementById('c-activity').textContent = avg !== null ? avg + '%' : '—';
   }
 
@@ -560,31 +589,40 @@
     empty.style.display = 'none';
     wrap.style.display  = 'block';
 
-    var rows = filtered.map(function(r, idx) {
-      var actStr = fmtActivity(r.activity);
+    var groups = groupByMember(filtered);
+
+    var rows = groups.map(function(g, idx) {
+      var avgAct = g.actCount > 0 ? Math.round(g.actSum / g.actCount) : null;
+      var actStr = avgAct !== null ? avgAct + '%' : '—';
       var actColor = '';
-      if (typeof r.activity === 'number') {
-        var pct = r.activity <= 1 ? r.activity * 100 : r.activity;
-        if (pct === 0)       actColor = 'color:#94a3b8';
-        else if (pct < 70)   actColor = 'color:#ef4444';
-        else if (pct < 85)   actColor = 'color:#f59e0b';
-        else                 actColor = 'color:#059669';
+      if (avgAct !== null) {
+        if (avgAct === 0)      actColor = 'color:#94a3b8';
+        else if (avgAct < 70)  actColor = 'color:#ef4444';
+        else if (avgAct < 85)  actColor = 'color:#f59e0b';
+        else                   actColor = 'color:#059669';
       }
+
+      var dateRange = '—';
+      if (g.firstDate && g.lastDate) {
+        if (fmtDate(g.firstDate) === fmtDate(g.lastDate)) {
+          dateRange = fmtDate(g.firstDate);
+        } else {
+          dateRange = fmtDate(g.firstDate) + ' – ' + fmtDate(g.lastDate);
+        }
+      }
+
       return '<tr>' +
         '<td class="num">' + (idx + 1) + '</td>' +
-        '<td>' + esc(r.member || '—') + '</td>' +
-        '<td style="color:var(--muted)">' + esc(r.org || '—') + '</td>' +
-        '<td class="mono">' + (r._started ? fmtDate(r._started) : '—') + '</td>' +
-        '<td>' + esc(r.project || '—') + '</td>' +
-        '<td class="mono">' + (r._started ? fmtTime(r._started) : '—') + '</td>' +
-        '<td class="mono">' + (r._stopped ? fmtTime(r._stopped) : '—') + '</td>' +
-        '<td class="dur">'  + fmtDur(r._dur) + '</td>' +
+        '<td style="font-weight:500">' + esc(g.member) + '</td>' +
+        '<td class="mono">' + g.sessions.length + '</td>' +
+        '<td class="mono">' + dateRange + '</td>' +
+        '<td class="dur">'  + fmtDur(g.totalSec) + '</td>' +
         '<td class="act" style="' + actColor + '">' + actStr + '</td>' +
       '</tr>';
     }).join('');
 
     tbody.innerHTML = rows;
-    setStatus('ok', 'Showing ' + filtered.length + ' of ' + allRecs.length + ' records');
+    setStatus('ok', 'Showing ' + groups.length + ' members · ' + filtered.length + ' sessions');
   }
 
   function esc(str) {
@@ -595,23 +633,21 @@
       .replace(/"/g,'&quot;');
   }
 
-  /* ── CSV export ── */
+  /* ── CSV export (grouped) ── */
   function exportCSV() {
     if (filtered.length === 0) { alert('No records to export.'); return; }
 
-    var headers = ['#','Member','Organization','Date','Project','Started','Stopped','Duration','Activity'];
-    var rowsArr = filtered.map(function(r, i) {
-      return [
-        i + 1,
-        r.member || '',
-        r.org    || '',
-        r._started ? fmtDate(r._started)    : '',
-        r.project  || '',
-        r._started ? r._started.toISOString() : '',
-        r._stopped ? r._stopped.toISOString() : '',
-        fmtDur(r._dur),
-        fmtActivity(r.activity)
-      ];
+    var groups = groupByMember(filtered);
+    var headers = ['#','Member','Sessions','Date Range','Total Duration','Avg Activity'];
+    var rowsArr = groups.map(function(g, i) {
+      var avgAct = g.actCount > 0 ? Math.round(g.actSum / g.actCount) + '%' : '—';
+      var dateRange = '—';
+      if (g.firstDate && g.lastDate) {
+        dateRange = fmtDate(g.firstDate) === fmtDate(g.lastDate)
+          ? fmtDate(g.firstDate)
+          : fmtDate(g.firstDate) + ' - ' + fmtDate(g.lastDate);
+      }
+      return [i + 1, g.member, g.sessions.length, dateRange, fmtDur(g.totalSec), avgAct];
     });
 
     var csvLines = [headers].concat(rowsArr).map(function(row) {
@@ -623,17 +659,14 @@
     var blob = new Blob([csvLines], { type: 'text/csv' });
     var url  = URL.createObjectURL(blob);
     var a    = document.createElement('a');
-    a.href      = url;
-    a.download  = 'payroll_sessions.csv';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    a.href = url; a.download = 'payroll_by_member.csv';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
   }
 
   /* ── Init ── */
   defaultDates();
-  grist.ready({ requiredAccess: 'read table' });
+  grist.ready({ requiredAccess: 'full' });
   loadData();
 </script>
 </body>
