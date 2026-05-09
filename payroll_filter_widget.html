@@ -336,7 +336,8 @@
         <th>#</th>
         <th>Member</th>
         <th>Sessions</th>
-        <th>Date Range</th>
+        <th>Start Date</th>
+        <th>End Date</th>
         <th>Total Duration</th>
         <th>Avg Activity</th>
       </tr>
@@ -615,7 +616,8 @@
         '<td class="num">' + (idx + 1) + '</td>' +
         '<td style="font-weight:500">' + esc(g.member) + '</td>' +
         '<td class="mono">' + g.sessions.length + '</td>' +
-        '<td class="mono">' + dateRange + '</td>' +
+        '<td class="mono">' + (g.firstDate ? fmtDate(g.firstDate) : '—') + '</td>' +
+        '<td class="mono">' + (g.lastDate  ? fmtDate(g.lastDate)  : '—') + '</td>' +
         '<td class="dur">'  + fmtDur(g.totalSec) + '</td>' +
         '<td class="act" style="' + actColor + '">' + actStr + '</td>' +
       '</tr>';
@@ -638,16 +640,13 @@
     if (filtered.length === 0) { alert('No records to export.'); return; }
 
     var groups = groupByMember(filtered);
-    var headers = ['#','Member','Sessions','Date Range','Total Duration','Avg Activity'];
+    var headers = ['#','Member','Sessions','Start Date','End Date','Total Duration','Avg Activity'];
     var rowsArr = groups.map(function(g, i) {
       var avgAct = g.actCount > 0 ? Math.round(g.actSum / g.actCount) + '%' : '—';
-      var dateRange = '—';
-      if (g.firstDate && g.lastDate) {
-        dateRange = fmtDate(g.firstDate) === fmtDate(g.lastDate)
-          ? fmtDate(g.firstDate)
-          : fmtDate(g.firstDate) + ' - ' + fmtDate(g.lastDate);
-      }
-      return [i + 1, g.member, g.sessions.length, dateRange, fmtDur(g.totalSec), avgAct];
+      return [i + 1, g.member, g.sessions.length,
+        g.firstDate ? fmtDate(g.firstDate) : '—',
+        g.lastDate  ? fmtDate(g.lastDate)  : '—',
+        fmtDur(g.totalSec), avgAct];
     });
 
     var csvLines = [headers].concat(rowsArr).map(function(row) {
