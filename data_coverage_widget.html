@@ -185,26 +185,27 @@
 <script>
   var TABLE = 'Work_Sessions_Data';
 
+  function toJsDate(ts) {
+    if (typeof ts === 'number') return new Date(ts * 1000);
+    return new Date(ts);
+  }
+
   function fmtDate(ts) {
-    var d = typeof ts === 'number' ? new Date(ts * 86400000) : new Date(ts);
-    var m = String(d.getUTCMonth() + 1).padStart(2,'0');
+    var d   = toJsDate(ts);
+    var m   = String(d.getUTCMonth() + 1).padStart(2,'0');
     var day = String(d.getUTCDate()).padStart(2,'0');
     return m + '/' + day + '/' + d.getUTCFullYear();
   }
 
   function daysBetween(minTs, maxTs) {
-    /* both are Grist date values (days since epoch) */
-    if (typeof minTs === 'number' && typeof maxTs === 'number') {
-      return maxTs - minTs;
-    }
-    var a = new Date(minTs), b = new Date(maxTs);
-    return Math.round((b - a) / 86400000);
+    return Math.round((toJsDate(maxTs) - toJsDate(minTs)) / 86400000);
   }
 
   function daysSince(maxTs) {
-    var latest = typeof maxTs === 'number' ? new Date(maxTs * 86400000) : new Date(maxTs);
+    var latest = toJsDate(maxTs);
     var today  = new Date();
-    today.setHours(0,0,0,0);
+    today.setUTCHours(0,0,0,0);
+    latest.setUTCHours(0,0,0,0);
     return Math.round((today - latest) / 86400000);
   }
 
