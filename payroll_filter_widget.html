@@ -219,7 +219,7 @@
   thead { background: #f0f3f8; }
   th {
     padding: 9px 12px;
-    text-align: left;
+    text-align: center;
     font-size: 10px; font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -232,9 +232,14 @@
     border-bottom: 1px solid #f0f3f8;
     color: var(--text);
     white-space: nowrap;
+    text-align: center;
   }
+  td:nth-child(2) { text-align: left; }
+  th:nth-child(2) { text-align: left; }
   tr:last-child td { border-bottom: none; }
-  tbody tr:hover td { background: #f8fafc; }
+  tbody tr:nth-child(odd)  td { background: #ffffff; }
+  tbody tr:nth-child(even) td { background: #f7f9fb; }
+  tbody tr:hover td { background: #eef3f8 !important; }
   .mono { font-family: var(--mono); }
   .dur  { font-family: var(--mono); color: var(--accent); font-weight: 500; }
   .num  { font-family: var(--mono); color: var(--muted); font-size: 11px; }
