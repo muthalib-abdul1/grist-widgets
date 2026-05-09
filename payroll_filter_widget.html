@@ -359,7 +359,7 @@
 <script>
   var allRecs = [];
   var filtered = [];
-  var tableName = 'Work_Sessions_Report';
+  var tableName = 'Work_Sessions_Data';
 
   /* ── Date helpers ── */
   function defaultDates() {
@@ -593,7 +593,14 @@
 
     var groups = groupByMember(filtered);
 
+    /* Detect duplicate names */
+    var nameCounts = {};
+    groups.forEach(function(g) { nameCounts[g.member] = (nameCounts[g.member] || 0) + 1; });
+
     var rows = groups.map(function(g, idx) {
+      var isDupe = nameCounts[g.member] > 1;
+      var rowBg  = isDupe ? 'background:#fef2f2' : '';
+
       var avgAct = g.actCount > 0 ? Math.round(g.actSum / g.actCount) : null;
       var actStr = avgAct !== null ? avgAct + '%' : '—';
       var actColor = '';
@@ -604,18 +611,9 @@
         else                   actColor = 'color:#059669';
       }
 
-      var dateRange = '—';
-      if (g.firstDate && g.lastDate) {
-        if (fmtDate(g.firstDate) === fmtDate(g.lastDate)) {
-          dateRange = fmtDate(g.firstDate);
-        } else {
-          dateRange = fmtDate(g.firstDate) + ' – ' + fmtDate(g.lastDate);
-        }
-      }
-
-      return '<tr>' +
+      return '<tr style="' + rowBg + '">' +
         '<td class="num">' + (idx + 1) + '</td>' +
-        '<td style="font-weight:500">' + esc(g.member) + '</td>' +
+        '<td style="font-weight:500' + (isDupe ? ';color:#dc2626' : '') + '">' + esc(g.member) + (isDupe ? ' ⚠' : '') + '</td>' +
         '<td class="mono">' + g.sessions.length + '</td>' +
         '<td class="mono">' + (g.firstDate ? fmtDate(g.firstDate) : '—') + '</td>' +
         '<td class="mono">' + (g.lastDate  ? fmtDate(g.lastDate)  : '—') + '</td>' +
