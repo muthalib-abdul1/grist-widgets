@@ -41,7 +41,7 @@ tbody td.ts { color: #666; font-size: 9px; }
     EMR Access Log
     <span class="count-badge" id="countBadge">—</span>
   </div>
-  <div class="actions">
+  <div class="actions" id="adminActions" style="display:none;">
     <button class="btn-sm export" onclick="exportCSV()">⬇ Export CSV</button>
     <button class="btn-sm" onclick="clearLog()">🗑 Clear</button>
   </div>
@@ -65,6 +65,18 @@ tbody td.ts { color: #666; font-size: 9px; }
 
 <script>
   grist.ready({ requiredAccess: 'full' });
+
+  async function init() {
+    try {
+      const user = await grist.getUser();
+      const access = (user?.access || user?.Access || '').toLowerCase();
+      const isOwner = access === 'owners' || access === 'owner';
+      document.getElementById('adminActions').style.display = isOwner ? 'flex' : 'none';
+    } catch(e) {
+      document.getElementById('adminActions').style.display = 'none';
+    }
+    await loadLog();
+  }
 
   grist.onRecords(() => loadLog());
 
@@ -90,7 +102,6 @@ tbody td.ts { color: #666; font-size: 9px; }
       table.style.display = 'table';
       tbody.innerHTML = '';
 
-      // Sort newest first by Timestamp
       const indices = [...Array(t.id.length).keys()]
         .sort((a, b) => (t.Timestamp?.[b] || 0) - (t.Timestamp?.[a] || 0));
 
@@ -163,7 +174,7 @@ tbody td.ts { color: #666; font-size: 9px; }
     } catch(e) { alert('Export error: ' + e.message); }
   }
 
-  loadLog();
+  init();
 </script>
 </body>
 </html>
