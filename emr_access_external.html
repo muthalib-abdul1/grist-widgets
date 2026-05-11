@@ -164,7 +164,6 @@ body {
   color: #aaa; text-align: center; padding: 8px 0;
 }
 .status-msg.error { color: #b35a0a; }
-/* debug box — remove after testing */
 #debugBox {
   background: #fff3cd;
   border: 1px solid #ffc107;
@@ -184,7 +183,6 @@ body {
 <div class="card">
   <div class="card-title">🔐 EMR Access Lookup</div>
 
-  <!-- DEBUG BOX — remove after confirming user object fields -->
   <div id="debugBox"></div>
 
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:4px;">
@@ -237,7 +235,20 @@ body {
   let secondsLeft   = TIMEOUT_SEC;
   let currentUser   = { name: 'Unknown', email: 'Unknown' };
 
-  grist.ready({ requiredAccess: 'full' });
+  // ── User info via grist.onOptions ──────────────────────────
+  // Grist passes user info through the options/config mechanism
+  grist.ready({
+    requiredAccess: 'full',
+    onEditOptions: function() {}
+  });
+
+  // Capture user info from grist options when available
+  grist.onOptions(function(options, settings) {
+    const debugBox = document.getElementById('debugBox');
+    debugBox.style.display = 'block';
+    debugBox.textContent = '🔍 DEBUG options: ' + JSON.stringify(options) +
+                           ' | settings: ' + JSON.stringify(settings);
+  });
 
   function formatEHR(val) {
     if (!val || val === '—') return '—';
@@ -249,30 +260,22 @@ body {
   }
 
   async function init() {
-    // ── Get logged-in user and show debug info ──
+    // Try all known Grist API methods for getting user info
+    const debugBox = document.getElementById('debugBox');
+    debugBox.style.display = 'block';
+
     try {
-      const u = await grist.getUser();
-
-      // Show full user object for debugging
-      const debugBox = document.getElementById('debugBox');
-      debugBox.style.display = 'block';
-      debugBox.textContent = '🔍 DEBUG user object: ' + JSON.stringify(u);
-
-      if (u) {
-        // Try every possible property name Grist might use
-        const name  = u.name       || u.Name       || u.fullName  ||
-                      u.loginName  || u.displayName || u.UserName  || '';
-        const email = u.email      || u.Email       || u.loginEmail ||
-                      u.userEmail  || u.UserEmail   || '';
-        currentUser = {
-          name:  name  || email || 'Unknown',
-          email: email || 'Unknown'
-        };
+      // Method 1: grist.docApi.getDocInfo()
+      const docInfo = await grist.docApi.getDocInfo();
+      debugBox.textContent = '🔍 DEBUG docInfo: ' + JSON.stringify(docInfo);
+    } catch(e1) {
+      try {
+        // Method 2: check all available grist methods
+        const methods = Object.keys(grist).filter(k => typeof grist[k] === 'function');
+        debugBox.textContent = '🔍 DEBUG available grist methods: ' + JSON.stringify(methods);
+      } catch(e2) {
+        debugBox.textContent = '🔍 DEBUG error: ' + e2.message;
       }
-    } catch(e) {
-      const debugBox = document.getElementById('debugBox');
-      debugBox.style.display = 'block';
-      debugBox.textContent = '🔍 DEBUG getUser error: ' + e.message;
     }
 
     await loadData();
