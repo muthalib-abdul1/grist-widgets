@@ -34,7 +34,6 @@ tbody td.ts { color: #666; font-size: 9px; }
 </style>
 </head>
 <body>
-
 <div class="header">
   <div class="title">
     <span class="live-dot"></span>
@@ -46,7 +45,6 @@ tbody td.ts { color: #666; font-size: 9px; }
     <button class="btn-sm" onclick="clearLog()">🗑 Clear</button>
   </div>
 </div>
-
 <div class="table-wrap">
   <div class="loading" id="loadingMsg">Loading…</div>
   <table id="logTable" style="display:none">
@@ -62,19 +60,28 @@ tbody td.ts { color: #666; font-size: 9px; }
     <tbody id="logBody"></tbody>
   </table>
 </div>
-
 <script>
   grist.ready({ requiredAccess: 'full' });
 
   async function init() {
     try {
-      const user = await grist.getUser();
-      const access = (user?.access || user?.Access || '').toLowerCase();
-      const isOwner = access === 'owners' || access === 'owner';
-      document.getElementById('adminActions').style.display = isOwner ? 'flex' : 'none';
-    } catch(e) {
-      document.getElementById('adminActions').style.display = 'none';
-    }
+      // Check access level via settings
+      grist.onOptions(function(options, settings) {
+        // owners have full access including delete
+        // use a write test to determine owner status
+      });
+      // Try writing a dummy record to test if user can delete (owner check)
+      try {
+        await grist.docApi.applyUserActions([['RemoveRecord', 'EMR_Access_Log', -999999]]);
+        document.getElementById('adminActions').style.display = 'flex';
+      } catch(e) {
+        const msg = (e.message || '').toLowerCase();
+        // If error is NOT about access/permission (e.g. record not found), user CAN delete = owner
+        if (!msg.includes('access') && !msg.includes('not allowed') && !msg.includes('permission')) {
+          document.getElementById('adminActions').style.display = 'flex';
+        }
+      }
+    } catch(e) {}
     await loadLog();
   }
 
@@ -108,20 +115,15 @@ tbody td.ts { color: #666; font-size: 9px; }
       indices.forEach(i => {
         const ts = t.Timestamp?.[i];
         const formatted = typeof ts === 'number'
-          ? new Date(ts * 1000).toLocaleString('en-US', {
-              month:'2-digit', day:'2-digit', year:'numeric',
-              hour:'2-digit', minute:'2-digit', second:'2-digit'
-            })
+          ? new Date(ts * 1000).toLocaleString('en-US', { month:'2-digit', day:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' })
           : (ts || '—');
-
         const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td class="ts">${formatted}</td>
-          <td>${t.User_Name?.[i]    || '—'}</td>
-          <td>${t.User_Email?.[i]   || '—'}</td>
-          <td>${t.Practitioner?.[i] || '—'}</td>
-          <td>${t.Facility?.[i]     || '—'}</td>
-        `;
+        tr.innerHTML =
+          '<td class="ts">' + formatted + '</td>' +
+          '<td>' + (t.User_Name?.[i]    || '—') + '</td>' +
+          '<td>' + (t.User_Email?.[i]   || '—') + '</td>' +
+          '<td>' + (t.Practitioner?.[i] || '—') + '</td>' +
+          '<td>' + (t.Facility?.[i]     || '—') + '</td>';
         tbody.appendChild(tr);
       });
 
@@ -137,9 +139,7 @@ tbody td.ts { color: #666; font-size: 9px; }
       const t = await grist.docApi.fetchTable('EMR_Access_Log');
       if (t.id && t.id.length > 0) {
         for (let i = 0; i < t.id.length; i += 50)
-          await grist.docApi.applyUserActions(
-            t.id.slice(i, i + 50).map(id => ['RemoveRecord', 'EMR_Access_Log', id])
-          );
+          await grist.docApi.applyUserActions(t.id.slice(i, i + 50).map(id => ['RemoveRecord', 'EMR_Access_Log', id]));
       }
       loadLog();
     } catch(e) { alert('Error: ' + e.message); }
@@ -149,27 +149,18 @@ tbody td.ts { color: #666; font-size: 9px; }
     try {
       const t = await grist.docApi.fetchTable('EMR_Access_Log');
       if (!t.id || !t.id.length) return;
-
       const headers = ['Timestamp', 'User Name', 'User Email', 'Practitioner', 'Facility'];
-      const indices = [...Array(t.id.length).keys()]
-        .sort((a, b) => (t.Timestamp?.[b] || 0) - (t.Timestamp?.[a] || 0));
-
+      const indices = [...Array(t.id.length).keys()].sort((a, b) => (t.Timestamp?.[b] || 0) - (t.Timestamp?.[a] || 0));
       const rows = indices.map(i => {
         const ts = t.Timestamp?.[i];
         const formatted = typeof ts === 'number' ? new Date(ts * 1000).toLocaleString('en-US') : (ts || '');
-        return [
-          formatted,
-          t.User_Name?.[i]    || '',
-          t.User_Email?.[i]   || '',
-          t.Practitioner?.[i] || '',
-          t.Facility?.[i]     || ''
-        ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+        return [formatted, t.User_Name?.[i] || '', t.User_Email?.[i] || '', t.Practitioner?.[i] || '', t.Facility?.[i] || '']
+          .map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',');
       });
-
       const csv = [headers.join(','), ...rows].join('\n');
-      const a   = document.createElement('a');
-      a.href    = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-      a.download = `emr_access_log_${new Date().toISOString().split('T')[0]}.csv`;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+      a.download = 'emr_access_log_' + new Date().toISOString().split('T')[0] + '.csv';
       a.click();
     } catch(e) { alert('Export error: ' + e.message); }
   }
