@@ -221,13 +221,7 @@ body {
   let secondsLeft   = TIMEOUT_SEC;
   let currentUser   = { name: 'Unknown', email: 'Unknown' };
 
-  // ── Read config from URL params ──
-  const urlParams  = new URLSearchParams(window.location.search);
-  const MAIN_API_KEY = urlParams.get('apikey') || '';
-  const MAIN_DOC_ID  = urlParams.get('maindoc') || '';
-  const GRIST_DOMAIN = 'idsolns.getgrist.com';
-
-  grist.ready({ requiredAccess: 'read table' });
+  grist.ready({ requiredAccess: 'full' });
 
   function formatEHR(val) {
     if (!val || val === '—') return '—';
@@ -334,7 +328,7 @@ body {
 
     setStatus('');
     showDetails(row);
-    logAccessToMainDoc(row);
+    logAccess(row);
     startTimer();
   }
 
@@ -370,8 +364,7 @@ body {
       qrContent.innerHTML = '';
       const img = document.createElement('img');
       img.className = 'qr-img';
-      img.alt = 'QR Code';
-      img.title = 'Click to enlarge';
+      img.alt = 'QR Code'; img.title = 'Click to enlarge';
       img.onclick = () => openQR(qrVal);
       img.src = qrVal;
       img.onload = () => {
@@ -395,38 +388,20 @@ body {
     document.getElementById('detailsPanel').classList.add('visible');
   }
 
-  // ── Log access to MAIN doc via REST API ──────────────────────
-  async function logAccessToMainDoc(row) {
-    if (!MAIN_API_KEY || !MAIN_DOC_ID) {
-      console.warn('API key or main doc ID not configured in URL params');
-      return;
-    }
+  // ── Log access to external doc's EMR_Access_Log ──────────────
+  async function logAccess(row) {
     try {
-      const now = Math.floor(Date.now() / 1000); // Unix timestamp
-      const payload = {
-        records: [{
-          fields: {
-            Timestamp:    now,
-            User_Name:    currentUser.name,
-            User_Email:   currentUser.email,
-            Practitioner: row.practName,
-            Facility:     row.facName,
-            Row_ID:       row.id
-          }
+      const now = Math.floor(Date.now() / 1000);
+      await grist.docApi.applyUserActions([
+        ['AddRecord', 'EMR_Access_Log', null, {
+          Timestamp:    now,
+          User_Name:    currentUser.name,
+          User_Email:   currentUser.email,
+          Practitioner: row.practName,
+          Facility:     row.facName,
+          Row_ID:       row.id
         }]
-      };
-
-      await fetch(
-        `https://${GRIST_DOMAIN}/api/docs/${MAIN_DOC_ID}/tables/EMR_Access_Log/records`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': 'Bearer ' + MAIN_API_KEY,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(payload)
-        }
-      );
+      ]);
     } catch(e) {
       console.warn('Log write failed:', e);
     }
