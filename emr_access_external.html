@@ -164,12 +164,28 @@ body {
   color: #aaa; text-align: center; padding: 8px 0;
 }
 .status-msg.error { color: #b35a0a; }
+/* debug box — remove after testing */
+#debugBox {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: #856404;
+  word-break: break-all;
+  display: none;
+}
 </style>
 </head>
 <body>
 
 <div class="card">
   <div class="card-title">🔐 EMR Access Lookup</div>
+
+  <!-- DEBUG BOX — remove after confirming user object fields -->
+  <div id="debugBox"></div>
 
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:4px;">
     <div class="field" style="margin-bottom:0">
@@ -233,20 +249,32 @@ body {
   }
 
   async function init() {
-    // Get logged-in user details
+    // ── Get logged-in user and show debug info ──
     try {
       const u = await grist.getUser();
+
+      // Show full user object for debugging
+      const debugBox = document.getElementById('debugBox');
+      debugBox.style.display = 'block';
+      debugBox.textContent = '🔍 DEBUG user object: ' + JSON.stringify(u);
+
       if (u) {
-        const name  = u.name  || u.Name  || u.fullName  || u.loginName  || '';
-        const email = u.email || u.Email || u.loginEmail || '';
+        // Try every possible property name Grist might use
+        const name  = u.name       || u.Name       || u.fullName  ||
+                      u.loginName  || u.displayName || u.UserName  || '';
+        const email = u.email      || u.Email       || u.loginEmail ||
+                      u.userEmail  || u.UserEmail   || '';
         currentUser = {
           name:  name  || email || 'Unknown',
           email: email || 'Unknown'
         };
       }
     } catch(e) {
-      console.warn('Could not get user info:', e);
+      const debugBox = document.getElementById('debugBox');
+      debugBox.style.display = 'block';
+      debugBox.textContent = '🔍 DEBUG getUser error: ' + e.message;
     }
+
     await loadData();
   }
 
@@ -392,7 +420,6 @@ body {
     document.getElementById('detailsPanel').classList.add('visible');
   }
 
-  // ── Log access to external doc's EMR_Access_Log ──────────────
   async function logAccess(row) {
     try {
       const now = Math.floor(Date.now() / 1000);
@@ -411,7 +438,6 @@ body {
     }
   }
 
-  // ── Timer ────────────────────────────────────────────────────
   function startTimer() {
     secondsLeft = TIMEOUT_SEC;
     clearInterval(timerInterval);
