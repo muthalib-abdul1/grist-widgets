@@ -8,183 +8,47 @@
 <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-  font-family: 'DM Sans', sans-serif;
-  background: #f1f0ed;
-  min-height: 100vh;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  overflow-y: auto;
-}
-.card {
-  background: #fff;
-  border-radius: 12px;
-  border: 1px solid #e0deda;
-  padding: 16px 20px;
-  width: 100%;
-}
-.card-title {
-  font-size: 14px; font-weight: 600; color: #111;
-  margin-bottom: 16px;
-  display: flex; align-items: center; gap: 8px;
-}
+body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; min-height: 100vh; padding: 16px; display: flex; flex-direction: column; gap: 0; overflow-y: auto; }
+.card { background: #fff; border-radius: 12px; border: 1px solid #e0deda; padding: 16px 20px; width: 100%; }
+.card-title { font-size: 14px; font-weight: 600; color: #111; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
 .field { margin-bottom: 14px; }
-.field label {
-  display: block; font-size: 10px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.07em;
-  color: #888; margin-bottom: 5px;
-  font-family: 'DM Mono', monospace;
-}
-.field select {
-  width: 100%; padding: 8px 12px;
-  border: 1.5px solid #e0deda; border-radius: 8px;
-  font-family: 'DM Sans', sans-serif; font-size: 13px;
-  color: #111; background: #fafaf8; outline: none;
-  cursor: pointer; transition: border-color 0.15s;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  padding-right: 32px;
-}
+.field label { display: block; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: #888; margin-bottom: 5px; font-family: 'DM Mono', monospace; }
+.field select { width: 100%; padding: 8px 12px; border: 1.5px solid #e0deda; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; color: #111; background: #fafaf8; outline: none; cursor: pointer; transition: border-color 0.15s; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
 .field select:focus { border-color: #2d6a4f; background-color: #fff; }
 .field select:disabled { color: #bbb; cursor: not-allowed; }
-#detailsPanel {
-  display: none;
-  margin-top: 16px;
-  border-top: 1px solid #f0eeea;
-  padding-top: 16px;
-}
+#detailsPanel { display: none; margin-top: 16px; border-top: 1px solid #f0eeea; padding-top: 16px; }
 #detailsPanel.visible { display: block; }
-.timer-wrap {
-  display: flex; align-items: center; gap: 10px;
-  margin-bottom: 14px;
-}
-.timer-bar-wrap {
-  flex: 1; height: 6px; background: #f0eeea;
-  border-radius: 3px; overflow: hidden;
-}
-.timer-bar {
-  height: 100%; background: #2d6a4f;
-  border-radius: 3px;
-  transition: width 1s linear;
-  width: 100%;
-}
+.timer-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.timer-bar-wrap { flex: 1; height: 6px; background: #f0eeea; border-radius: 3px; overflow: hidden; }
+.timer-bar { height: 100%; background: #2d6a4f; border-radius: 3px; transition: width 1s linear; width: 100%; }
 .timer-bar.warning { background: #e65100; }
-.timer-label {
-  font-family: 'DM Mono', monospace; font-size: 12px;
-  font-weight: 700; color: #111;
-  white-space: nowrap; min-width: 120px; text-align: right;
-}
+.timer-label { font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 700; color: #111; white-space: nowrap; min-width: 120px; text-align: right; }
 .timer-label.warning { color: #e65100; }
-.details-layout {
-  display: grid;
-  grid-template-columns: 1fr 200px;
-  gap: 12px;
-  align-items: start;
-}
-.fields-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr;
-  gap: 10px;
-}
-.detail-item {
-  background: #f8f7f5;
-  border: 1px solid #e0deda;
-  border-radius: 8px;
-  padding: 10px 12px;
-}
-.detail-label {
-  font-family: 'DM Mono', monospace; font-size: 9px;
-  font-weight: 600; text-transform: uppercase;
-  letter-spacing: 0.07em; color: #aaa;
-  margin-bottom: 4px;
-}
-.detail-value {
-  font-family: 'DM Mono', monospace; font-size: 12px;
-  color: #111; font-weight: 500;
-  word-break: break-all;
-}
-.detail-value a {
-  color: #2d6a4f; text-decoration: none;
-  font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500;
-}
+.details-layout { display: grid; grid-template-columns: 1fr 200px; gap: 12px; align-items: start; }
+.fields-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; }
+.detail-item { background: #f8f7f5; border: 1px solid #e0deda; border-radius: 8px; padding: 10px 12px; }
+.detail-label { font-family: 'DM Mono', monospace; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: #aaa; margin-bottom: 4px; }
+.detail-value { font-family: 'DM Mono', monospace; font-size: 12px; color: #111; font-weight: 500; word-break: break-all; }
+.detail-value a { color: #2d6a4f; text-decoration: none; font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500; }
 .detail-value a:hover { text-decoration: underline; }
-.qr-panel {
-  background: #f8f7f5;
-  border: 1px solid #e0deda;
-  border-radius: 8px;
-  padding: 10px 12px;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: flex-start;
-  gap: 8px;
-}
-.qr-img {
-  width: 168px; height: 168px;
-  object-fit: contain; border-radius: 6px;
-  cursor: pointer; display: block;
-}
+.qr-panel { background: #f8f7f5; border: 1px solid #e0deda; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 8px; }
+.qr-img { width: 168px; height: 168px; object-fit: contain; border-radius: 6px; cursor: pointer; display: block; }
 .qr-hint { font-family: 'DM Mono', monospace; font-size: 9px; color: #bbb; text-align: center; }
 .qr-none { font-family: 'DM Mono', monospace; font-size: 10px; color: #ccc; padding: 20px 0; }
-#qrOverlay {
-  display: none;
-  position: fixed; top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: rgba(0,0,0,0.88);
-  z-index: 9999;
-  align-items: center; justify-content: center;
-  flex-direction: column; gap: 16px;
-}
+#qrOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.88); z-index: 9999; align-items: center; justify-content: center; flex-direction: column; gap: 16px; }
 #qrOverlay.visible { display: flex; }
-#qrOverlay img {
-  max-width: 88vw; max-height: 78vh;
-  border-radius: 12px; background: #fff; padding: 14px;
-}
-#qrOverlay .close-qr {
-  color: #fff; font-family: 'DM Mono', monospace;
-  font-size: 13px; cursor: pointer;
-  padding: 8px 24px; border-radius: 8px;
-  border: 1.5px solid rgba(255,255,255,0.4);
-  background: rgba(255,255,255,0.1);
-}
+#qrOverlay img { max-width: 88vw; max-height: 78vh; border-radius: 12px; background: #fff; padding: 14px; }
+#qrOverlay .close-qr { color: #fff; font-family: 'DM Mono', monospace; font-size: 13px; cursor: pointer; padding: 8px 24px; border-radius: 8px; border: 1.5px solid rgba(255,255,255,0.4); background: rgba(255,255,255,0.1); }
 #qrOverlay .close-qr:hover { background: rgba(255,255,255,0.2); }
-.btn-hide {
-  margin-top: 12px; width: 100%;
-  padding: 8px; border-radius: 8px;
-  border: 1.5px solid #e0deda; background: #fff;
-  font-family: 'DM Sans', sans-serif; font-size: 12px;
-  font-weight: 500; color: #888; cursor: pointer;
-  transition: all 0.15s;
-}
+.btn-hide { margin-top: 12px; width: 100%; padding: 8px; border-radius: 8px; border: 1.5px solid #e0deda; background: #fff; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; color: #888; cursor: pointer; transition: all 0.15s; }
 .btn-hide:hover { border-color: #b35a0a; color: #b35a0a; }
-.status-msg {
-  font-family: 'DM Mono', monospace; font-size: 11px;
-  color: #aaa; text-align: center; padding: 8px 0;
-}
+.status-msg { font-family: 'DM Mono', monospace; font-size: 11px; color: #aaa; text-align: center; padding: 8px 0; }
 .status-msg.error { color: #b35a0a; }
-#debugBox {
-  background: #fff3cd;
-  border: 1px solid #ffc107;
-  border-radius: 6px;
-  padding: 8px 12px;
-  margin-bottom: 12px;
-  font-family: 'DM Mono', monospace;
-  font-size: 10px;
-  color: #856404;
-  word-break: break-all;
-  display: none;
-}
 </style>
 </head>
 <body>
-
 <div class="card">
   <div class="card-title">🔐 EMR Access Lookup</div>
-
-  <div id="debugBox"></div>
-
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:4px;">
     <div class="field" style="margin-bottom:0">
       <label>Practitioner</label>
@@ -199,17 +63,12 @@ body {
       </select>
     </div>
   </div>
-
   <div class="status-msg" id="statusMsg"></div>
-
   <div id="detailsPanel">
     <div class="timer-wrap">
-      <div class="timer-bar-wrap">
-        <div class="timer-bar" id="timerBar"></div>
-      </div>
+      <div class="timer-bar-wrap"><div class="timer-bar" id="timerBar"></div></div>
       <div class="timer-label" id="timerLabel">Hiding in 30s</div>
     </div>
-
     <div class="details-layout">
       <div class="fields-grid" id="fieldsGrid"></div>
       <div class="qr-panel">
@@ -217,67 +76,30 @@ body {
         <div id="qrContent"><div class="qr-none">No QR</div></div>
       </div>
     </div>
-
     <button class="btn-hide" onclick="clearDetails()">✕ Hide Details</button>
   </div>
 </div>
-
 <div id="qrOverlay">
   <div style="color:rgba(255,255,255,0.6);font-family:'DM Mono',monospace;font-size:11px;">Tap image to close</div>
   <img id="qrOverlayImg" src="" alt="QR Code" onclick="closeQR()" />
   <button class="close-qr" onclick="closeQR()">✕ Close</button>
 </div>
-
 <script>
   const TIMEOUT_SEC = 30;
-  let emrData       = [];
-  let timerInterval = null;
-  let secondsLeft   = TIMEOUT_SEC;
-  let currentUser   = { name: 'Unknown', email: 'Unknown' };
+  let emrData = [], timerInterval = null, secondsLeft = TIMEOUT_SEC;
 
-  // ── User info via grist.onOptions ──────────────────────────
-  // Grist passes user info through the options/config mechanism
-  grist.ready({
-    requiredAccess: 'full',
-    onEditOptions: function() {}
-  });
-
-  // Capture user info from grist options when available
-  grist.onOptions(function(options, settings) {
-    const debugBox = document.getElementById('debugBox');
-    debugBox.style.display = 'block';
-    debugBox.textContent = '🔍 DEBUG options: ' + JSON.stringify(options) +
-                           ' | settings: ' + JSON.stringify(settings);
-  });
+  grist.ready({ requiredAccess: 'full' });
 
   function formatEHR(val) {
     if (!val || val === '—') return '—';
-    const mdMatch = val.match(/^\[(.+?)\]\((https?:\/\/.+?)\)$/);
-    if (mdMatch) return `<a href="${mdMatch[2]}" target="_blank">${mdMatch[1]}</a>`;
-    const urlMatch = val.match(/^(https?:\/\/\S+)$/);
-    if (urlMatch) return `<a href="${urlMatch[1]}" target="_blank">${urlMatch[1]}</a>`;
+    const md = val.match(/^\[(.+?)\]\((https?:\/\/.+?)\)$/);
+    if (md) return '<a href="' + md[2] + '" target="_blank">' + md[1] + '</a>';
+    const url = val.match(/^(https?:\/\/\S+)$/);
+    if (url) return '<a href="' + url[1] + '" target="_blank">' + url[1] + '</a>';
     return val;
   }
 
   async function init() {
-    // Try all known Grist API methods for getting user info
-    const debugBox = document.getElementById('debugBox');
-    debugBox.style.display = 'block';
-
-    try {
-      // Method 1: grist.docApi.getDocInfo()
-      const docInfo = await grist.docApi.getDocInfo();
-      debugBox.textContent = '🔍 DEBUG docInfo: ' + JSON.stringify(docInfo);
-    } catch(e1) {
-      try {
-        // Method 2: check all available grist methods
-        const methods = Object.keys(grist).filter(k => typeof grist[k] === 'function');
-        debugBox.textContent = '🔍 DEBUG available grist methods: ' + JSON.stringify(methods);
-      } catch(e2) {
-        debugBox.textContent = '🔍 DEBUG error: ' + e2.message;
-      }
-    }
-
     await loadData();
   }
 
@@ -285,13 +107,11 @@ body {
     setStatus('Loading…');
     try {
       const emr = await grist.docApi.fetchTable('EMR_Access');
-
       emrData = [];
       for (let i = 0; i < emr.id.length; i++) {
         const practName = emr.Practitioner_Name?.[i] || '';
         const facName   = emr.Facility_Name?.[i]     || '';
         if (!practName && !facName) continue;
-
         emrData.push({
           id:            emr.id[i],
           practName,
@@ -305,7 +125,6 @@ body {
           qrCode:        emr.QR_Code?.[i]             || ''
         });
       }
-
       buildPractitionerDropdown();
       setStatus('');
     } catch(e) {
@@ -317,17 +136,8 @@ body {
     const sel = document.getElementById('practSelect');
     sel.innerHTML = '<option value="">— Select practitioner —</option>';
     const seen = new Set(), practs = [];
-    emrData.forEach(r => {
-      if (r.practName && !seen.has(r.practName)) {
-        seen.add(r.practName);
-        practs.push(r.practName);
-      }
-    });
-    practs.sort().forEach(name => {
-      const o = document.createElement('option');
-      o.value = name; o.textContent = name;
-      sel.appendChild(o);
-    });
+    emrData.forEach(r => { if (r.practName && !seen.has(r.practName)) { seen.add(r.practName); practs.push(r.practName); } });
+    practs.sort().forEach(name => { const o = document.createElement('option'); o.value = name; o.textContent = name; sel.appendChild(o); });
   }
 
   function onPractChange() {
@@ -336,19 +146,9 @@ body {
     const facSel    = document.getElementById('facSelect');
     facSel.innerHTML = '<option value="">— Select facility —</option>';
     if (!practName) { facSel.disabled = true; return; }
-
     const seen = new Set(), facs = [];
-    emrData.forEach(r => {
-      if (r.practName === practName && r.facName && !seen.has(r.facName)) {
-        seen.add(r.facName);
-        facs.push(r.facName);
-      }
-    });
-    facs.sort().forEach(name => {
-      const o = document.createElement('option');
-      o.value = name; o.textContent = name;
-      facSel.appendChild(o);
-    });
+    emrData.forEach(r => { if (r.practName === practName && r.facName && !seen.has(r.facName)) { seen.add(r.facName); facs.push(r.facName); } });
+    facs.sort().forEach(name => { const o = document.createElement('option'); o.value = name; o.textContent = name; facSel.appendChild(o); });
     facSel.disabled = false;
   }
 
@@ -357,10 +157,8 @@ body {
     const practName = document.getElementById('practSelect').value;
     const facName   = document.getElementById('facSelect').value;
     if (!practName || !facName) return;
-
     const row = emrData.find(r => r.practName === practName && r.facName === facName);
     if (!row) { setStatus('No EMR record found.', true); return; }
-
     setStatus('');
     showDetails(row);
     logAccess(row);
@@ -370,7 +168,6 @@ body {
   function showDetails(row) {
     const grid = document.getElementById('fieldsGrid');
     grid.innerHTML = '';
-
     [
       { label: 'Username',       value: row.username,             span: 1, html: false },
       { label: 'EHR System',     value: formatEHR(row.ehrSystem), span: 1, html: true  },
@@ -384,83 +181,52 @@ body {
       if (f.span > 1) div.style.gridColumn = 'span ' + f.span;
       const valueDiv = document.createElement('div');
       valueDiv.className = 'detail-value';
-      if (f.html) { valueDiv.innerHTML = f.value; }
-      else { valueDiv.textContent = f.value; }
-      div.innerHTML = `<div class="detail-label">${f.label}</div>`;
+      if (f.html) { valueDiv.innerHTML = f.value; } else { valueDiv.textContent = f.value; }
+      div.innerHTML = '<div class="detail-label">' + f.label + '</div>';
       div.appendChild(valueDiv);
       grid.appendChild(div);
     });
-
     const qrContent = document.getElementById('qrContent');
     const qrVal = row.qrCode || '';
     const isValidUrl = qrVal && qrVal !== '—' && isNaN(Number(qrVal));
-
     if (isValidUrl) {
       qrContent.innerHTML = '';
       const img = document.createElement('img');
-      img.className = 'qr-img';
-      img.alt = 'QR Code'; img.title = 'Click to enlarge';
-      img.onclick = () => openQR(qrVal);
-      img.src = qrVal;
-      img.onload = () => {
-        qrContent.appendChild(img);
-        const hint = document.createElement('div');
-        hint.className = 'qr-hint';
-        hint.textContent = 'Tap to enlarge';
-        qrContent.appendChild(hint);
-      };
-      img.onerror = () => {
-        const link = document.createElement('a');
-        link.href = qrVal; link.target = '_blank';
-        link.textContent = '📷 Open QR ↗';
-        link.style.cssText = 'font-family:DM Mono,monospace;font-size:11px;color:#2d6a4f;';
-        qrContent.appendChild(link);
-      };
+      img.className = 'qr-img'; img.alt = 'QR Code'; img.title = 'Click to enlarge';
+      img.onclick = () => openQR(qrVal); img.src = qrVal;
+      img.onload = () => { qrContent.appendChild(img); const hint = document.createElement('div'); hint.className = 'qr-hint'; hint.textContent = 'Tap to enlarge'; qrContent.appendChild(hint); };
+      img.onerror = () => { const link = document.createElement('a'); link.href = qrVal; link.target = '_blank'; link.textContent = '📷 Open QR ↗'; link.style.cssText = 'font-family:DM Mono,monospace;font-size:11px;color:#2d6a4f;'; qrContent.appendChild(link); };
     } else {
       qrContent.innerHTML = '<div class="qr-none">No QR</div>';
     }
-
     document.getElementById('detailsPanel').classList.add('visible');
   }
 
+  // ── Log access — let Grist trigger formula fill User_Name and User_Email ──
   async function logAccess(row) {
     try {
       const now = Math.floor(Date.now() / 1000);
       await grist.docApi.applyUserActions([
         ['AddRecord', 'EMR_Access_Log', null, {
           Timestamp:    now,
-          User_Name:    currentUser.name,
-          User_Email:   currentUser.email,
           Practitioner: row.practName,
           Facility:     row.facName,
           Row_ID:       row.id
         }]
       ]);
-    } catch(e) {
-      console.warn('Log write failed:', e);
-    }
+    } catch(e) { console.warn('Log write failed:', e); }
   }
 
   function startTimer() {
-    secondsLeft = TIMEOUT_SEC;
-    clearInterval(timerInterval);
-    updateTimerUI();
-    timerInterval = setInterval(() => {
-      secondsLeft--;
-      updateTimerUI();
-      if (secondsLeft <= 0) { clearInterval(timerInterval); clearDetails(); }
-    }, 1000);
+    secondsLeft = TIMEOUT_SEC; clearInterval(timerInterval); updateTimerUI();
+    timerInterval = setInterval(() => { secondsLeft--; updateTimerUI(); if (secondsLeft <= 0) { clearInterval(timerInterval); clearDetails(); } }, 1000);
   }
 
   function updateTimerUI() {
-    const pct  = (secondsLeft / TIMEOUT_SEC) * 100;
-    const bar  = document.getElementById('timerBar');
-    const lbl  = document.getElementById('timerLabel');
-    const warn = secondsLeft <= 10;
-    bar.style.width = pct + '%';
-    bar.className   = 'timer-bar' + (warn ? ' warning' : '');
-    lbl.textContent = `Hiding in ${secondsLeft}s`;
-    lbl.className   = 'timer-label' + (warn ? ' warning' : '');
+    const pct = (secondsLeft / TIMEOUT_SEC) * 100;
+    const bar = document.getElementById('timerBar'), lbl = document.getElementById('timerLabel'), warn = secondsLeft <= 10;
+    bar.style.width = pct + '%'; bar.className = 'timer-bar' + (warn ? ' warning' : '');
+    lbl.textContent = 'Hiding in ' + secondsLeft + 's'; lbl.className = 'timer-label' + (warn ? ' warning' : '');
   }
 
   function clearDetails() {
@@ -470,19 +236,12 @@ body {
     document.getElementById('qrContent').innerHTML = '<div class="qr-none">No QR</div>';
   }
 
-  function openQR(url) {
-    document.getElementById('qrOverlayImg').src = url;
-    document.getElementById('qrOverlay').classList.add('visible');
-  }
-  function closeQR() {
-    document.getElementById('qrOverlay').classList.remove('visible');
-    document.getElementById('qrOverlayImg').src = '';
-  }
+  function openQR(url) { document.getElementById('qrOverlayImg').src = url; document.getElementById('qrOverlay').classList.add('visible'); }
+  function closeQR() { document.getElementById('qrOverlay').classList.remove('visible'); document.getElementById('qrOverlayImg').src = ''; }
 
   function setStatus(msg, isError = false) {
     const el = document.getElementById('statusMsg');
-    el.textContent = msg;
-    el.className = 'status-msg' + (isError ? ' error' : '');
+    el.textContent = msg; el.className = 'status-msg' + (isError ? ' error' : '');
   }
 
   init();
