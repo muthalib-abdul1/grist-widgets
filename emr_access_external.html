@@ -233,16 +233,20 @@ body {
   }
 
   async function init() {
+    // Get logged-in user details
     try {
-      if (typeof grist.getUser === 'function') {
-        const u = await grist.getUser();
-        if (u) {
-          const name  = u.name  || u.Name  || u.fullName  || '';
-          const email = u.email || u.Email || u.loginEmail || '';
-          currentUser = { name: name || email || 'Unknown', email: email || 'Unknown' };
-        }
+      const u = await grist.getUser();
+      if (u) {
+        const name  = u.name  || u.Name  || u.fullName  || u.loginName  || '';
+        const email = u.email || u.Email || u.loginEmail || '';
+        currentUser = {
+          name:  name  || email || 'Unknown',
+          email: email || 'Unknown'
+        };
       }
-    } catch(e) {}
+    } catch(e) {
+      console.warn('Could not get user info:', e);
+    }
     await loadData();
   }
 
