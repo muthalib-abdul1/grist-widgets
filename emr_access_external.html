@@ -133,29 +133,21 @@ body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; min-height: 100v
   let emrData = [], npData = [], timerInterval = null, secondsLeft = TIMEOUT_SEC;
   let currentUser = { name: 'Unknown', email: 'Unknown' };
 
-  grist.ready({
-    requiredAccess: 'full',
-    onEditToken: function() {},
-  });
+  grist.ready({ requiredAccess: 'full' });
 
-  // Wait for Grist to be fully ready before fetching user
-  async function start() {
+  async function initUser() {
     try {
-      // Retry getUser up to 5 times with a short delay
-      for (let attempt = 0; attempt < 5; attempt++) {
-        try {
-          const u = await grist.getUser();
-          if (u && (u.name || u.email)) {
-            currentUser = {
-              name:  u.name  || u.email || 'Unknown',
-              email: u.email || 'Unknown'
-            };
-            break;
-          }
-        } catch(e) {}
-        await new Promise(r => setTimeout(r, 300));
+      const u = await grist.getUser();
+      if (u) {
+        const name  = u.name  || u.Name  || u.fullName  || '';
+        const email = u.email || u.Email || u.loginEmail || '';
+        currentUser = { name: name || email || 'Unknown', email: email || 'Unknown' };
       }
     } catch(e) {}
+  }
+
+  async function start() {
+    await initUser();
     await Promise.all([loadData(), loadNPData()]);
   }
 
