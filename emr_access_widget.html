@@ -8,211 +8,77 @@
 <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-  font-family: 'DM Sans', sans-serif;
-  background: #f1f0ed;
-  min-height: 100vh;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  overflow-y: auto;
-}
-
-.card {
-  background: #fff;
-  border-radius: 12px;
-  border: 1px solid #e0deda;
-  padding: 16px 20px;
-  width: 100%;
-}
-.card-title {
-  font-size: 14px; font-weight: 600; color: #111;
-  margin-bottom: 16px;
-  display: flex; align-items: center; gap: 8px;
-}
-
-/* ── Dropdowns ── */
+body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; min-height: 100vh; padding: 16px; display: flex; flex-direction: column; gap: 0; overflow-y: auto; }
+.card { background: #fff; border-radius: 12px; border: 1px solid #e0deda; padding: 16px 20px; width: 100%; }
+.card-title { font-size: 14px; font-weight: 600; color: #111; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
 .field { margin-bottom: 14px; }
-.field label {
-  display: block; font-size: 10px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.07em;
-  color: #888; margin-bottom: 5px;
-  font-family: 'DM Mono', monospace;
-}
-.field select {
-  width: 100%; padding: 8px 12px;
-  border: 1.5px solid #e0deda; border-radius: 8px;
-  font-family: 'DM Sans', sans-serif; font-size: 13px;
-  color: #111; background: #fafaf8; outline: none;
-  cursor: pointer; transition: border-color 0.15s;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  padding-right: 32px;
-}
+.field label { display: block; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: #888; margin-bottom: 5px; font-family: 'DM Mono', monospace; }
+.field select { width: 100%; padding: 8px 12px; border: 1.5px solid #e0deda; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; color: #111; background: #fafaf8; outline: none; cursor: pointer; transition: border-color 0.15s; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
 .field select:focus { border-color: #2d6a4f; background-color: #fff; }
 .field select:disabled { color: #bbb; cursor: not-allowed; }
 
-/* ── Timer ── */
-#detailsPanel {
-  display: none;
-  margin-top: 16px;
-  border-top: 1px solid #f0eeea;
-  padding-top: 16px;
-}
+#detailsPanel { display: none; margin-top: 16px; border-top: 1px solid #f0eeea; padding-top: 16px; }
 #detailsPanel.visible { display: block; }
 
-.timer-wrap {
-  display: flex; align-items: center; gap: 10px;
-  margin-bottom: 14px;
-}
-.timer-bar-wrap {
-  flex: 1; height: 6px; background: #f0eeea;
-  border-radius: 3px; overflow: hidden;
-}
-.timer-bar {
-  height: 100%; background: #2d6a4f;
-  border-radius: 3px;
-  transition: width 1s linear;
-  width: 100%;
-}
+.timer-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.timer-bar-wrap { flex: 1; height: 6px; background: #f0eeea; border-radius: 3px; overflow: hidden; }
+.timer-bar { height: 100%; background: #2d6a4f; border-radius: 3px; transition: width 1s linear; width: 100%; }
 .timer-bar.warning { background: #e65100; }
-.timer-label {
-  font-family: 'DM Mono', monospace; font-size: 12px;
-  font-weight: 700; color: #111;
-  white-space: nowrap; min-width: 120px; text-align: right;
-}
+.timer-label { font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 700; color: #111; white-space: nowrap; min-width: 120px; text-align: right; }
 .timer-label.warning { color: #e65100; }
 
-/* ── Main layout: fields left, QR right ── */
-.details-layout {
-  display: grid;
-  grid-template-columns: 1fr 200px;
-  gap: 12px;
-  align-items: start;
-}
+.details-layout { display: grid; grid-template-columns: 1fr 200px; gap: 12px; align-items: start; }
+.fields-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; }
 
-/* ── Fields (2-col grid on left) ── */
-.fields-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr;
-  gap: 10px;
-}
+.detail-item { background: #f8f7f5; border: 1px solid #e0deda; border-radius: 8px; padding: 10px 12px; position: relative; }
+.detail-label { font-family: 'DM Mono', monospace; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: #aaa; margin-bottom: 4px; }
+.detail-value { font-family: 'DM Mono', monospace; font-size: 12px; color: #111; font-weight: 500; word-break: break-all; }
+.detail-value a { color: #2d6a4f; text-decoration: none; font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500; }
+.detail-value a:hover { text-decoration: underline; }
 
-.detail-item {
-  background: #f8f7f5;
-  border: 1px solid #e0deda;
-  border-radius: 8px;
-  padding: 10px 12px;
-}
-.detail-item.full { grid-column: 1 / -1; }
+.copy-wrap { display: flex; align-items: center; gap: 6px; }
+.copy-btn { background: none; border: 1px solid #e0deda; border-radius: 4px; padding: 2px 6px; cursor: pointer; font-size: 11px; color: #888; font-family: 'DM Mono', monospace; transition: all 0.15s; white-space: nowrap; }
+.copy-btn:hover { border-color: #2d6a4f; color: #2d6a4f; background: #f0f7f4; }
+.copy-btn.copied { border-color: #2d6a4f; color: #2d6a4f; background: #e8f5e9; }
 
-.detail-label {
-  font-family: 'DM Mono', monospace; font-size: 9px;
-  font-weight: 600; text-transform: uppercase;
-  letter-spacing: 0.07em; color: #aaa;
-  margin-bottom: 4px;
-}
-.detail-value {
-  font-family: 'DM Mono', monospace; font-size: 12px;
-  color: #111; font-weight: 500;
-  word-break: break-all;
-}
-.detail-value a {
-  color: #2d6a4f;
-  text-decoration: none;
-  font-family: 'DM Mono', monospace;
-  font-size: 12px;
-  font-weight: 500;
-}
-.detail-value a:hover {
-  text-decoration: underline;
-}
+.qr-panel { background: #f8f7f5; border: 1px solid #e0deda; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 8px; }
+.qr-img { width: 168px; height: 168px; object-fit: contain; border-radius: 6px; cursor: pointer; display: block; }
+.qr-hint { font-family: 'DM Mono', monospace; font-size: 9px; color: #bbb; text-align: center; }
+.qr-none { font-family: 'DM Mono', monospace; font-size: 10px; color: #ccc; padding: 20px 0; }
 
-/* ── QR panel (right column) ── */
-.qr-panel {
-  background: #f8f7f5;
-  border: 1px solid #e0deda;
-  border-radius: 8px;
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
-}
-.qr-img {
-  width: 168px;
-  height: 168px;
-  object-fit: contain;
-  border-radius: 6px;
-  cursor: pointer;
-  display: block;
-}
-.qr-hint {
-  font-family: 'DM Mono', monospace;
-  font-size: 9px; color: #bbb;
-  text-align: center;
-}
-.qr-none {
-  font-family: 'DM Mono', monospace;
-  font-size: 10px; color: #ccc;
-  padding: 20px 0;
-}
+.np-btn { margin-top: 10px; width: 100%; padding: 8px; border-radius: 8px; border: 1.5px solid #e0deda; background: #fff; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; color: #444; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.np-btn:hover { border-color: #2d6a4f; color: #2d6a4f; background: #f0f7f4; }
 
-/* ── QR overlay ── */
-#qrOverlay {
-  display: none;
-  position: fixed; top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: rgba(0,0,0,0.88);
-  z-index: 9999;
-  align-items: center; justify-content: center;
-  flex-direction: column; gap: 16px;
-}
-#qrOverlay.visible { display: flex; }
-#qrOverlay img {
-  max-width: 88vw; max-height: 78vh;
-  border-radius: 12px; background: #fff; padding: 14px;
-}
-#qrOverlay .close-qr {
-  color: #fff; font-family: 'DM Mono', monospace;
-  font-size: 13px; cursor: pointer;
-  padding: 8px 24px; border-radius: 8px;
-  border: 1.5px solid rgba(255,255,255,0.4);
-  background: rgba(255,255,255,0.1);
-}
-#qrOverlay .close-qr:hover { background: rgba(255,255,255,0.2); }
-#qrOverlay .qr-caption {
-  color: rgba(255,255,255,0.6);
-  font-family: 'DM Mono', monospace; font-size: 11px;
-}
-
-/* ── Buttons ── */
-.btn-hide {
-  margin-top: 12px; width: 100%;
-  padding: 8px; border-radius: 8px;
-  border: 1.5px solid #e0deda; background: #fff;
-  font-family: 'DM Sans', sans-serif; font-size: 12px;
-  font-weight: 500; color: #888; cursor: pointer;
-  transition: all 0.15s;
-}
+.btn-hide { margin-top: 8px; width: 100%; padding: 8px; border-radius: 8px; border: 1.5px solid #e0deda; background: #fff; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; color: #888; cursor: pointer; transition: all 0.15s; }
 .btn-hide:hover { border-color: #b35a0a; color: #b35a0a; }
 
-.status-msg {
-  font-family: 'DM Mono', monospace; font-size: 11px;
-  color: #aaa; text-align: center; padding: 8px 0;
-}
+.status-msg { font-family: 'DM Mono', monospace; font-size: 11px; color: #aaa; text-align: center; padding: 8px 0; }
 .status-msg.error { color: #b35a0a; }
+
+#qrOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.88); z-index: 9999; align-items: center; justify-content: center; flex-direction: column; gap: 16px; }
+#qrOverlay.visible { display: flex; }
+#qrOverlay img { max-width: 88vw; max-height: 78vh; border-radius: 12px; background: #fff; padding: 14px; }
+#qrOverlay .close-qr { color: #fff; font-family: 'DM Mono', monospace; font-size: 13px; cursor: pointer; padding: 8px 24px; border-radius: 8px; border: 1.5px solid rgba(255,255,255,0.4); background: rgba(255,255,255,0.1); }
+#qrOverlay .close-qr:hover { background: rgba(255,255,255,0.2); }
+
+#npModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9998; align-items: center; justify-content: center; }
+#npModal.visible { display: flex; }
+.np-modal-box { background: #fff; border-radius: 14px; padding: 24px; width: 90%; max-width: 460px; max-height: 80vh; overflow-y: auto; }
+.np-modal-title { font-size: 14px; font-weight: 600; color: #111; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+.np-modal-close { background: none; border: none; font-size: 18px; cursor: pointer; color: #888; line-height: 1; }
+.np-modal-close:hover { color: #111; }
+.np-card { background: #f8f7f5; border: 1px solid #e0deda; border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; }
+.np-card:last-child { margin-bottom: 0; }
+.np-name { font-size: 13px; font-weight: 600; color: #111; margin-bottom: 8px; }
+.np-row { font-family: 'DM Mono', monospace; font-size: 11px; color: #555; margin-bottom: 4px; display: flex; gap: 8px; align-items: flex-start; }
+.np-row span:first-child { color: #aaa; min-width: 80px; flex-shrink: 0; }
+.np-empty { font-family: 'DM Mono', monospace; font-size: 12px; color: #aaa; text-align: center; padding: 16px 0; }
 </style>
 </head>
 <body>
 
 <div class="card">
   <div class="card-title">🔐 EMR Access Lookup</div>
-
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:4px;">
     <div class="field" style="margin-bottom:0">
       <label>Practitioner</label>
@@ -227,117 +93,80 @@ body {
       </select>
     </div>
   </div>
-
   <div class="status-msg" id="statusMsg"></div>
 
   <div id="detailsPanel">
     <div class="timer-wrap">
-      <div class="timer-bar-wrap">
-        <div class="timer-bar" id="timerBar"></div>
-      </div>
+      <div class="timer-bar-wrap"><div class="timer-bar" id="timerBar"></div></div>
       <div class="timer-label" id="timerLabel">Hiding in 30s</div>
     </div>
-
-    <!-- Fields left, QR right -->
     <div class="details-layout">
       <div class="fields-grid" id="fieldsGrid"></div>
       <div class="qr-panel">
         <div class="detail-label">QR Code</div>
         <div id="qrContent"><div class="qr-none">No QR</div></div>
+        <button class="np-btn" onclick="openNPModal()">📋 NP Contact Details</button>
       </div>
     </div>
-
     <button class="btn-hide" onclick="clearDetails()">✕ Hide Details</button>
   </div>
 </div>
 
-<!-- QR Overlay -->
 <div id="qrOverlay">
-  <div class="qr-caption">Tap image to close</div>
+  <div style="color:rgba(255,255,255,0.6);font-family:'DM Mono',monospace;font-size:11px;">Tap image to close</div>
   <img id="qrOverlayImg" src="" alt="QR Code" onclick="closeQR()" />
   <button class="close-qr" onclick="closeQR()">✕ Close</button>
 </div>
 
+<div id="npModal">
+  <div class="np-modal-box">
+    <div class="np-modal-title">
+      <span>📋 NP Contact Details</span>
+      <button class="np-modal-close" onclick="closeNPModal()">✕</button>
+    </div>
+    <div id="npList"><div class="np-empty">Loading…</div></div>
+  </div>
+</div>
+
 <script>
   const TIMEOUT_SEC = 30;
-  let emrData       = [];
-  let timerInterval = null;
-  let secondsLeft   = TIMEOUT_SEC;
-  let currentUser   = { name: 'Unknown', email: 'Unknown' };
+  let emrData = [], npData = [], timerInterval = null, secondsLeft = TIMEOUT_SEC;
+  let currentUser = { name: 'Unknown', email: 'Unknown' };
 
   grist.ready({ requiredAccess: 'full' });
 
-  // ── Parse markdown-style links [text](url) or plain URLs ────
-  function formatEHR(val) {
-    if (!val || val === '—') return '—';
-    // Markdown link: [text](url)
-    const mdMatch = val.match(/^\[(.+?)\]\((https?:\/\/.+?)\)$/);
-    if (mdMatch) {
-      return `<a href="${mdMatch[2]}" target="_blank">${mdMatch[1]}</a>`;
-    }
-    // Plain URL
-    const urlMatch = val.match(/^(https?:\/\/\S+)$/);
-    if (urlMatch) {
-      return `<a href="${urlMatch[1]}" target="_blank">${urlMatch[1]}</a>`;
-    }
-    return val;
-  }
-
-  async function init() {
+  async function start() {
     try {
-      if (typeof grist.getUser === 'function') {
-        const u = await grist.getUser();
-        if (u) {
-          const name  = u.name  || u.Name  || u.fullName  || '';
-          const email = u.email || u.Email || u.loginEmail || '';
-          currentUser = { name: name || email || 'Unknown', email: email || 'Unknown' };
-        }
-      }
+      const u = await grist.getUser();
+      if (u) currentUser = { name: u.name || u.email || 'Unknown', email: u.email || 'Unknown' };
     } catch(e) {}
-    await loadData();
+    await Promise.all([loadData(), loadNPData()]);
   }
 
+  // ── Load EMR data ─────────────────────────────────────────────
   async function loadData() {
     setStatus('Loading…');
     try {
-      const [emr, employees, facilities] = await Promise.all([
-        grist.docApi.fetchTable('EMR_Access'),
-        grist.docApi.fetchTable('Employee'),
-        grist.docApi.fetchTable('Facility')
-      ]);
-
-      const empMap = {};
-      for (let i = 0; i < employees.id.length; i++)
-        empMap[employees.id[i]] = employees.Employee_Name?.[i] || '';
-
-      const facMap = {};
-      for (let i = 0; i < facilities.id.length; i++)
-        facMap[facilities.id[i]] = facilities.Facility_Name?.[i] || '';
-
+      const emr = await grist.docApi.fetchTable('EMR_Access');
       emrData = [];
       for (let i = 0; i < emr.id.length; i++) {
-        const practId = emr.Practitioner_Name?.[i];
-        let facIds = emr.Facility_Name?.[i];
-        let facIdList = Array.isArray(facIds) ? facIds : (facIds ? [facIds] : []);
-        if (facIdList[0] === 'L') facIdList = facIdList.slice(1);
-        facIdList = facIdList.filter(x => typeof x === 'number');
-
+        const practName = emr.Practitioner_Name?.[i] || '';
+        const facName   = emr.Facility_Name?.[i]     || '';
+        if (!practName && !facName) continue;
         emrData.push({
           id:            emr.id[i],
-          practId,
-          practName:     empMap[practId] || '',
-          facIds:        facIdList,
-          facNames:      facIdList.map(id => facMap[id] || ''),
+          practName,
+          facName,
           username:      emr.Username?.[i]            || '—',
           password:      emr.Password?.[i]            || '—',
           ehrSystem:     emr.EHR_System?.[i]          || '—',
+          accessType:    emr.Access_Type?.[i]         || '—',
           primaryBackup: emr.Primary_Backup?.[i]      || '—',
           billingAccess: emr.Billing_Access_Type?.[i] || '—',
           notes:         emr.Notes?.[i]               || '—',
           qrCode:        emr.QR_Code?.[i]             || ''
         });
       }
-
       buildPractitionerDropdown();
       setStatus('');
     } catch(e) {
@@ -345,146 +174,188 @@ body {
     }
   }
 
+  // ── Load all employee contacts from main doc via REST API ─────
+  async function loadNPData() {
+    try {
+      const response = await fetch(
+        'https://idsolns.getgrist.com/api/docs/aDxJysFXqQ2KSGKnPGhXaU/tables/Employee/records',
+        { headers: { 'Authorization': 'Bearer b6a0d607a4b350b086e8776f6368e29f24907229' } }
+      );
+      const data = await response.json();
+      npData = [];
+      for (const record of data.records) {
+        const f = record.fields;
+        npData.push({
+          name:          f.Employee_Name   || '—',
+          email:         f.Email           || '—',
+          phone:         f.Phone_Number    || '—',
+          modeOfContact: f.Mode_of_Contact || '—',
+        });
+      }
+    } catch(e) {
+      console.warn('Could not load NP data:', e);
+    }
+  }
+
+  function formatEHR(val) {
+    if (!val || val === '—') return '—';
+    const md = val.match(/^\[(.+?)\]\((https?:\/\/.+?)\)$/);
+    if (md) return '<a href="' + md[2] + '" target="_blank">' + md[1] + '</a>';
+    const url = val.match(/^(https?:\/\/\S+)$/);
+    if (url) return '<a href="' + url[1] + '" target="_blank">' + url[1] + '</a>';
+    return val;
+  }
+
   function buildPractitionerDropdown() {
     const sel = document.getElementById('practSelect');
     sel.innerHTML = '<option value="">— Select practitioner —</option>';
     const seen = new Set(), practs = [];
-    emrData.forEach(r => {
-      if (r.practName && !seen.has(r.practId)) {
-        seen.add(r.practId);
-        practs.push({ id: r.practId, name: r.practName });
-      }
-    });
-    practs.sort((a,b) => a.name.localeCompare(b.name)).forEach(p => {
-      const o = document.createElement('option');
-      o.value = p.id; o.textContent = p.name;
-      sel.appendChild(o);
-    });
+    emrData.forEach(r => { if (r.practName && !seen.has(r.practName)) { seen.add(r.practName); practs.push(r.practName); } });
+    practs.sort().forEach(name => { const o = document.createElement('option'); o.value = name; o.textContent = name; sel.appendChild(o); });
   }
 
   function onPractChange() {
     clearDetails();
-    const practId = parseInt(document.getElementById('practSelect').value);
-    const facSel  = document.getElementById('facSelect');
+    const practName = document.getElementById('practSelect').value;
+    const facSel    = document.getElementById('facSelect');
     facSel.innerHTML = '<option value="">— Select facility —</option>';
-    if (!practId) { facSel.disabled = true; return; }
-
+    if (!practName) { facSel.disabled = true; return; }
     const seen = new Set(), facs = [];
-    emrData.forEach(r => {
-      if (r.practId === practId) {
-        r.facIds.forEach((fid, idx) => {
-          if (!seen.has(fid)) {
-            seen.add(fid);
-            facs.push({ id: fid, name: r.facNames[idx] || fid });
-          }
-        });
-      }
-    });
-    facs.sort((a,b) => a.name.localeCompare(b.name)).forEach(f => {
-      const o = document.createElement('option');
-      o.value = f.id; o.textContent = f.name;
-      facSel.appendChild(o);
-    });
+    emrData.forEach(r => { if (r.practName === practName && r.facName && !seen.has(r.facName)) { seen.add(r.facName); facs.push(r.facName); } });
+    facs.sort().forEach(name => { const o = document.createElement('option'); o.value = name; o.textContent = name; facSel.appendChild(o); });
     facSel.disabled = false;
   }
 
   function onFacChange() {
     clearDetails();
-    const practId = parseInt(document.getElementById('practSelect').value);
-    const facId   = parseInt(document.getElementById('facSelect').value);
-    if (!practId || !facId) return;
-
-    const row = emrData.find(r => r.practId === practId && r.facIds.includes(facId));
+    const practName = document.getElementById('practSelect').value;
+    const facName   = document.getElementById('facSelect').value;
+    if (!practName || !facName) return;
+    const row = emrData.find(r => r.practName === practName && r.facName === facName);
     if (!row) { setStatus('No EMR record found.', true); return; }
-
     setStatus('');
-    showDetails(row, facId);
-    logAccess(row, facId);
+    showDetails(row);
+    logAccess(row);
     startTimer();
   }
 
-  function showDetails(row, facId) {
+  function showDetails(row) {
     const grid = document.getElementById('fieldsGrid');
     grid.innerHTML = '';
-
-    [
-      { label: 'Username',       value: row.username,           span: 1, html: false },
-      { label: 'EHR System',     value: formatEHR(row.ehrSystem), span: 1, html: true  },
-      { label: 'Primary/Backup', value: row.primaryBackup,      span: 1, html: false },
-      { label: 'Billing Access', value: row.billingAccess,      span: 1, html: false },
-      { label: 'Password',       value: row.password,           span: 1, html: false },
-      { label: 'Notes',          value: row.notes,              span: 3, html: false },
-    ].forEach(f => {
+    const fields = [
+      { label: 'Username',       value: row.username,             span: 1, html: false, copy: false },
+      { label: 'EHR System',     value: formatEHR(row.ehrSystem), span: 1, html: true,  copy: false },
+      { label: 'Primary/Backup', value: row.primaryBackup,        span: 1, html: false, copy: false },
+      { label: 'Access Type',    value: row.accessType,           span: 1, html: false, copy: false },
+      { label: 'Password',       value: row.password,             span: 1, html: false, copy: true  },
+      { label: 'Billing Access', value: row.billingAccess,        span: 1, html: false, copy: false },
+      { label: 'Notes',          value: row.notes,                span: 2, html: false, copy: false },
+    ];
+    fields.forEach(f => {
       const div = document.createElement('div');
       div.className = 'detail-item';
       if (f.span > 1) div.style.gridColumn = 'span ' + f.span;
-      const valueDiv = document.createElement('div');
-      valueDiv.className = 'detail-value';
-      if (f.html) {
-        valueDiv.innerHTML = f.value;
-      } else {
+      const labelDiv = document.createElement('div');
+      labelDiv.className = 'detail-label';
+      labelDiv.textContent = f.label;
+      div.appendChild(labelDiv);
+      if (f.copy) {
+        const wrap = document.createElement('div');
+        wrap.className = 'copy-wrap';
+        const valueDiv = document.createElement('div');
+        valueDiv.className = 'detail-value';
         valueDiv.textContent = f.value;
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'copy-btn';
+        copyBtn.textContent = '⎘ Copy';
+        copyBtn.onclick = () => {
+          navigator.clipboard.writeText(f.value).then(() => {
+            copyBtn.textContent = '✓ Copied';
+            copyBtn.classList.add('copied');
+            setTimeout(() => { copyBtn.textContent = '⎘ Copy'; copyBtn.classList.remove('copied'); }, 2000);
+          });
+        };
+        wrap.appendChild(valueDiv);
+        wrap.appendChild(copyBtn);
+        div.appendChild(wrap);
+      } else {
+        const valueDiv = document.createElement('div');
+        valueDiv.className = 'detail-value';
+        if (f.html) { valueDiv.innerHTML = f.value; } else { valueDiv.textContent = f.value; }
+        div.appendChild(valueDiv);
       }
-      div.innerHTML = `<div class="detail-label">${f.label}</div>`;
-      div.appendChild(valueDiv);
       grid.appendChild(div);
     });
 
-    // QR on the right
     const qrContent = document.getElementById('qrContent');
     const qrVal = row.qrCode || '';
     const isValidUrl = qrVal && qrVal !== '—' && isNaN(Number(qrVal));
-
     if (isValidUrl) {
       qrContent.innerHTML = '';
       const img = document.createElement('img');
-      img.className = 'qr-img';
-      img.alt = 'QR Code';
-      img.title = 'Click to enlarge';
-      img.onclick = () => openQR(qrVal);
-      img.src = qrVal;
-      img.onload = () => {
-        qrContent.appendChild(img);
-        const hint = document.createElement('div');
-        hint.className = 'qr-hint';
-        hint.textContent = 'Tap to enlarge';
-        qrContent.appendChild(hint);
-      };
-      img.onerror = () => {
-        const link = document.createElement('a');
-        link.href = qrVal; link.target = '_blank';
-        link.textContent = '📷 Open QR ↗';
-        link.style.cssText = 'font-family:DM Mono,monospace;font-size:11px;color:#2d6a4f;';
-        qrContent.appendChild(link);
-      };
+      img.className = 'qr-img'; img.alt = 'QR Code'; img.title = 'Click to enlarge';
+      img.onclick = () => openQR(qrVal); img.src = qrVal;
+      img.onload = () => { qrContent.appendChild(img); const hint = document.createElement('div'); hint.className = 'qr-hint'; hint.textContent = 'Tap to enlarge'; qrContent.appendChild(hint); };
+      img.onerror = () => { const link = document.createElement('a'); link.href = qrVal; link.target = '_blank'; link.textContent = '📷 Open QR ↗'; link.style.cssText = 'font-family:DM Mono,monospace;font-size:11px;color:#2d6a4f;'; qrContent.appendChild(link); };
     } else {
       qrContent.innerHTML = '<div class="qr-none">No QR</div>';
     }
-
     document.getElementById('detailsPanel').classList.add('visible');
   }
 
-  // ── Timer ────────────────────────────────────────────────────
+  // ── NP Contact Modal — filters by selected practitioner ───────
+  function openNPModal() {
+    const list = document.getElementById('npList');
+    const selectedPract = document.getElementById('practSelect').value;
+    console.log('Selected practitioner:', selectedPract);
+    console.log('npData names:', npData.map(n => n.name));
+    console.log('npData length:', npData.length);
+    const contact = npData.find(np => np.name === selectedPract);
+    if (!contact) {
+      list.innerHTML = '<div class="np-empty">No contact details found for this practitioner.</div>';
+    } else {
+      list.innerHTML = `
+        <div class="np-card">
+          <div class="np-name">${contact.name}</div>
+          <div class="np-row"><span>Email</span><span>${contact.email}</span></div>
+          <div class="np-row"><span>Phone</span><span>${contact.phone}</span></div>
+          <div class="np-row"><span>Contact via</span><span>${contact.modeOfContact}</span></div>
+        </div>`;
+    }
+    document.getElementById('npModal').classList.add('visible');
+  }
+
+  function closeNPModal() {
+    document.getElementById('npModal').classList.remove('visible');
+  }
+
+  // ── Log access ────────────────────────────────────────────────
+  async function logAccess(row) {
+    try {
+      const now = Math.floor(Date.now() / 1000);
+      await grist.docApi.applyUserActions([
+        ['AddRecord', 'EMR_Access_Log', null, {
+          Timestamp:    now,
+          Practitioner: row.practName,
+          Facility:     row.facName,
+          Row_ID:       row.id,
+          User_Name:    currentUser.name,
+          User_Email:   currentUser.email
+        }]
+      ]);
+    } catch(e) { console.warn('Log write failed:', e); }
+  }
+
   function startTimer() {
-    secondsLeft = TIMEOUT_SEC;
-    clearInterval(timerInterval);
-    updateTimerUI();
-    timerInterval = setInterval(() => {
-      secondsLeft--;
-      updateTimerUI();
-      if (secondsLeft <= 0) { clearInterval(timerInterval); clearDetails(); }
-    }, 1000);
+    secondsLeft = TIMEOUT_SEC; clearInterval(timerInterval); updateTimerUI();
+    timerInterval = setInterval(() => { secondsLeft--; updateTimerUI(); if (secondsLeft <= 0) { clearInterval(timerInterval); clearDetails(); } }, 1000);
   }
 
   function updateTimerUI() {
-    const pct  = (secondsLeft / TIMEOUT_SEC) * 100;
-    const bar  = document.getElementById('timerBar');
-    const lbl  = document.getElementById('timerLabel');
-    const warn = secondsLeft <= 10;
-    bar.style.width = pct + '%';
-    bar.className   = 'timer-bar' + (warn ? ' warning' : '');
-    lbl.textContent = `Hiding in ${secondsLeft}s`;
-    lbl.className   = 'timer-label' + (warn ? ' warning' : '');
+    const pct = (secondsLeft / TIMEOUT_SEC) * 100;
+    const bar = document.getElementById('timerBar'), lbl = document.getElementById('timerLabel'), warn = secondsLeft <= 10;
+    bar.style.width = pct + '%'; bar.className = 'timer-bar' + (warn ? ' warning' : '');
+    lbl.textContent = 'Hiding in ' + secondsLeft + 's'; lbl.className = 'timer-label' + (warn ? ' warning' : '');
   }
 
   function clearDetails() {
@@ -494,93 +365,15 @@ body {
     document.getElementById('qrContent').innerHTML = '<div class="qr-none">No QR</div>';
   }
 
-  // ── Log access ───────────────────────────────────────────────
-  async function logAccess(row, facId) {
-    try {
-      const facName = row.facNames[row.facIds.indexOf(facId)] || '—';
-      await grist.docApi.applyUserActions([
-        ['AddRecord', 'EMR_Access_Log', null, {
-          Practitioner: row.practName,
-          Facility:     facName,
-          Row_ID:       row.id,
-          User_Name:    currentUser.name,
-          User_Email:   currentUser.email
-        }]
-      ]);
-    } catch(e) { console.warn('Log write failed:', e); }
-  }
-
-  async function loadLog() {
-    try {
-      const t = await grist.docApi.fetchTable('EMR_Access_Log');
-      const tbody = document.getElementById('logBody');
-      const table = document.getElementById('logTable');
-      const empty = document.getElementById('emptyLog');
-      if (!t.id || t.id.length === 0) {
-        table.style.display = 'none'; empty.style.display = 'block'; return;
-      }
-      empty.style.display = 'none'; table.style.display = 'table';
-      tbody.innerHTML = '';
-      [...Array(t.id.length).keys()].reverse().forEach(i => {
-        const ts = t.Timestamp?.[i];
-        const formatted = typeof ts === 'number'
-          ? new Date(ts * 1000).toLocaleString('en-US', { month:'2-digit', day:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' })
-          : (ts || '—');
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${formatted}</td><td>${t.User_Name?.[i]||'—'}</td><td>${t.User_Email?.[i]||'—'}</td><td>${t.Practitioner?.[i]||'—'}</td><td>${t.Facility?.[i]||'—'}</td>`;
-        tbody.appendChild(tr);
-      });
-    } catch(e) { console.warn('Log load failed:', e); }
-  }
-
-  async function clearLog() {
-    if (!confirm('Delete all log entries?')) return;
-    try {
-      const t = await grist.docApi.fetchTable('EMR_Access_Log');
-      if (t.id && t.id.length > 0) {
-        for (let i = 0; i < t.id.length; i += 50)
-          await grist.docApi.applyUserActions(t.id.slice(i,i+50).map(id => ['RemoveRecord','EMR_Access_Log',id]));
-      }
-      loadLog();
-    } catch(e) { console.warn('Clear failed:', e); }
-  }
-
-  async function exportCSV() {
-    try {
-      const t = await grist.docApi.fetchTable('EMR_Access_Log');
-      if (!t.id || !t.id.length) return;
-      const headers = ['Timestamp','User Name','Email','Practitioner','Facility'];
-      const rows = [...Array(t.id.length).keys()].reverse().map(i => {
-        const ts = t.Timestamp?.[i];
-        const formatted = typeof ts === 'number' ? new Date(ts*1000).toLocaleString('en-US') : (ts||'');
-        return [formatted,t.User_Name?.[i]||'',t.User_Email?.[i]||'',t.Practitioner?.[i]||'',t.Facility?.[i]||'']
-          .map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',');
-      });
-      const csv = [headers.join(','),...rows].join('\n');
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
-      a.download = `emr_access_log_${new Date().toISOString().split('T')[0]}.csv`;
-      a.click();
-    } catch(e) { console.warn('Export failed:', e); }
-  }
-
-  // ── QR overlay ───────────────────────────────────────────────
-  function openQR(url) {
-    document.getElementById('qrOverlayImg').src = url;
-    document.getElementById('qrOverlay').classList.add('visible');
-  }
-  function closeQR() {
-    document.getElementById('qrOverlay').classList.remove('visible');
-    document.getElementById('qrOverlayImg').src = '';
-  }
+  function openQR(url) { document.getElementById('qrOverlayImg').src = url; document.getElementById('qrOverlay').classList.add('visible'); }
+  function closeQR() { document.getElementById('qrOverlay').classList.remove('visible'); document.getElementById('qrOverlayImg').src = ''; }
 
   function setStatus(msg, isError = false) {
     const el = document.getElementById('statusMsg');
-    el.textContent = msg;
-    el.className = 'status-msg' + (isError ? ' error' : '');
+    el.textContent = msg; el.className = 'status-msg' + (isError ? ' error' : '');
   }
 
-  init();
+  start();
 </script>
 </body>
 </html>
