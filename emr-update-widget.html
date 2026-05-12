@@ -8,7 +8,8 @@
 <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; height: 100vh; overflow: hidden; display: flex; flex-direction: column; padding: 12px; gap: 10px; }
+html, body { height: 100%; }
+body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; display: flex; flex-direction: column; padding: 12px; gap: 10px; overflow: hidden; }
 
 .top-bar { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .top-title { font-size: 13px; font-weight: 700; color: #111; }
@@ -16,11 +17,11 @@ body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; height: 100vh; o
 .search-input { margin-left: auto; padding: 6px 12px; border: 1.5px solid #e0deda; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 12px; color: #111; background: #fff; outline: none; width: 200px; transition: border-color 0.15s; }
 .search-input:focus { border-color: #2d6a4f; }
 
-.main-layout { display: grid; grid-template-columns: 220px 1fr; gap: 10px; flex: 1; min-height: 0; }
+.main-layout { display: grid; grid-template-columns: 220px 1fr; gap: 10px; flex: 1; overflow: hidden; height: 0; }
 
-.pract-list { background: #fff; border-radius: 10px; border: 1px solid #e0deda; overflow-y: auto; display: flex; flex-direction: column; min-height: 0; }
+.pract-list { background: #fff; border-radius: 10px; border: 1px solid #e0deda; overflow-y: auto; display: flex; flex-direction: column; height: 100%; }
 .pract-list-header { padding: 10px 14px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #aaa; font-family: 'DM Mono', monospace; border-bottom: 1px solid #f0eeea; flex-shrink: 0; }
-.pract-item { padding: 10px 14px; cursor: pointer; border-bottom: 1px solid #f8f7f5; transition: background 0.12s; }
+.pract-item { padding: 10px 14px; cursor: pointer; border-bottom: 1px solid #f8f7f5; transition: background 0.12s; flex-shrink: 0; }
 .pract-item:hover { background: #f8f7f5; }
 .pract-item.active { background: #1a1916; }
 .pract-item.active .pract-name { color: #fff; }
@@ -28,7 +29,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; height: 100vh; o
 .pract-name { font-size: 12px; font-weight: 600; color: #111; }
 .pract-count { font-size: 10px; font-family: 'DM Mono', monospace; color: #aaa; margin-top: 2px; }
 
-.cards-panel { overflow-y: auto; display: flex; flex-direction: column; gap: 10px; min-height: 0; padding-right: 2px; }
+.cards-panel { overflow-y: scroll; display: flex; flex-direction: column; gap: 10px; padding-right: 4px; height: 100%; }
 .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #bbb; font-family: 'DM Mono', monospace; font-size: 12px; gap: 8px; }
 
 .fac-card { background: #fff; border-radius: 10px; border: 1px solid #e0deda; padding: 16px; transition: border-color 0.2s; flex-shrink: 0; }
