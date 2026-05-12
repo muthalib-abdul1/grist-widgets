@@ -100,7 +100,6 @@ body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; min-height: 100v
       <div class="timer-bar-wrap"><div class="timer-bar" id="timerBar"></div></div>
       <div class="timer-label" id="timerLabel">Hiding in 30s</div>
     </div>
-
     <div class="details-layout">
       <div class="fields-grid" id="fieldsGrid"></div>
       <div class="qr-panel">
@@ -109,7 +108,6 @@ body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; min-height: 100v
         <button class="np-btn" onclick="openNPModal()">📋 NP Contact Details</button>
       </div>
     </div>
-
     <button class="btn-hide" onclick="clearDetails()">✕ Hide Details</button>
   </div>
 </div>
@@ -123,7 +121,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; min-height: 100v
 <div id="npModal">
   <div class="np-modal-box">
     <div class="np-modal-title">
-      <span>📋 Nurse Practitioner Contacts</span>
+      <span>📋 NP Contact Details</span>
       <button class="np-modal-close" onclick="closeNPModal()">✕</button>
     </div>
     <div id="npList"><div class="np-empty">Loading…</div></div>
@@ -133,13 +131,19 @@ body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; min-height: 100v
 <script>
   const TIMEOUT_SEC = 30;
   let emrData = [], npData = [], timerInterval = null, secondsLeft = TIMEOUT_SEC;
+  let currentUser = { name: 'Unknown', email: 'Unknown' };
 
   grist.ready({ requiredAccess: 'full' });
 
-  async function init() {
+  async function start() {
+    try {
+      const u = await grist.getUser();
+      if (u) currentUser = { name: u.name || u.email || 'Unknown', email: u.email || 'Unknown' };
+    } catch(e) {}
     await Promise.all([loadData(), loadNPData()]);
   }
 
+  // ── Load EMR data ─────────────────────────────────────────────
   async function loadData() {
     setStatus('Loading…');
     try {
@@ -170,21 +174,16 @@ body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; min-height: 100v
     }
   }
 
+  // ── Load NP contacts from local NP_Contacts table ─────────────
   async function loadNPData() {
     try {
-      const response = await fetch(
-        'https://idsolns.getgrist.com/api/docs/aDxJysFXqQ2KSGKnPGhXaU/tables/Employee/records',
-        { headers: { 'Authorization': 'Bearer b6a0d607a4b350b086e8776f6368e29f24907229' } }
-      );
-      const data = await response.json();
+      const np = await grist.docApi.fetchTable('NP_Contacts');
       npData = [];
-      for (const record of data.records) {
-        const f = record.fields;
+      for (let i = 0; i < np.id.length; i++) {
         npData.push({
-          name:          f.Employee_Name    || '—',
-          email:         f.Email            || '—',
-          phone:         f.Phone_Number     || '—',
-          modeOfContact: f.Mode_of_Contact  || '—',
+          name:          np.Employee_Name?.[i]   || '—',
+          phone:         np.Phone_Number?.[i]    || '—',
+          modeOfContact: np.Mode_of_Contact?.[i] || '—',
         });
       }
     } catch(e) {
@@ -237,7 +236,6 @@ body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; min-height: 100v
   function showDetails(row) {
     const grid = document.getElementById('fieldsGrid');
     grid.innerHTML = '';
-
     const fields = [
       { label: 'Username',       value: row.username,             span: 1, html: false, copy: false },
       { label: 'EHR System',     value: formatEHR(row.ehrSystem), span: 1, html: true,  copy: false },
@@ -247,7 +245,6 @@ body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; min-height: 100v
       { label: 'Billing Access', value: row.billingAccess,        span: 1, html: false, copy: false },
       { label: 'Notes',          value: row.notes,                span: 2, html: false, copy: false },
     ];
-
     fields.forEach(f => {
       const div = document.createElement('div');
       div.className = 'detail-item';
@@ -297,22 +294,20 @@ body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; min-height: 100v
     } else {
       qrContent.innerHTML = '<div class="qr-none">No QR</div>';
     }
-
     document.getElementById('detailsPanel').classList.add('visible');
   }
 
+  // ── NP Contact Modal — filters by selected practitioner ───────
   function openNPModal() {
     const list = document.getElementById('npList');
     const selectedPract = document.getElementById('practSelect').value;
     const contact = npData.find(np => np.name === selectedPract);
-
     if (!contact) {
       list.innerHTML = '<div class="np-empty">No contact details found for this practitioner.</div>';
     } else {
       list.innerHTML = `
         <div class="np-card">
           <div class="np-name">${contact.name}</div>
-          <div class="np-row"><span>Email</span><span>${contact.email}</span></div>
           <div class="np-row"><span>Phone</span><span>${contact.phone}</span></div>
           <div class="np-row"><span>Contact via</span><span>${contact.modeOfContact}</span></div>
         </div>`;
@@ -324,6 +319,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; min-height: 100v
     document.getElementById('npModal').classList.remove('visible');
   }
 
+  // ── Log access ────────────────────────────────────────────────
   async function logAccess(row) {
     try {
       const now = Math.floor(Date.now() / 1000);
@@ -365,19 +361,6 @@ body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; min-height: 100v
   function setStatus(msg, isError = false) {
     const el = document.getElementById('statusMsg');
     el.textContent = msg; el.className = 'status-msg' + (isError ? ' error' : '');
-  }
-
-  let currentUser = { name: 'Unknown', email: 'Unknown' };
-  async function initUser() {
-    try {
-      const u = await grist.getUser();
-      if (u) currentUser = { name: u.name || u.email || 'Unknown', email: u.email || 'Unknown' };
-    } catch(e) {}
-  }
-
-  async function start() {
-    await initUser();
-    await init();
   }
 
   start();
