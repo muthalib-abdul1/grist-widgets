@@ -180,14 +180,12 @@ body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; min-height: 100v
       npData = [];
       for (const record of data.records) {
         const f = record.fields;
-        if (f.Job_Title === 'Nurse Practitioner') {
-          npData.push({
-            name:          f.Employee_Name    || '—',
-            email:         f.Email            || '—',
-            phone:         f.Phone_Number     || '—',
-            modeOfContact: f.Mode_of_Contact  || '—',
-          });
-        }
+        npData.push({
+          name:          f.Employee_Name    || '—',
+          email:         f.Email            || '—',
+          phone:         f.Phone_Number     || '—',
+          modeOfContact: f.Mode_of_Contact  || '—',
+        });
       }
     } catch(e) {
       console.warn('Could not load NP data:', e);
@@ -305,17 +303,19 @@ body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; min-height: 100v
 
   function openNPModal() {
     const list = document.getElementById('npList');
-    if (npData.length === 0) {
-      list.innerHTML = '<div class="np-empty">No Nurse Practitioner contacts found.</div>';
+    const selectedPract = document.getElementById('practSelect').value;
+    const contact = npData.find(np => np.name === selectedPract);
+
+    if (!contact) {
+      list.innerHTML = '<div class="np-empty">No contact details found for this practitioner.</div>';
     } else {
-      list.innerHTML = npData.map(np => `
+      list.innerHTML = `
         <div class="np-card">
-          <div class="np-name">${np.name}</div>
-          <div class="np-row"><span>Email</span><span>${np.email}</span></div>
-          <div class="np-row"><span>Phone</span><span>${np.phone}</span></div>
-          <div class="np-row"><span>Contact via</span><span>${np.modeOfContact}</span></div>
-        </div>
-      `).join('');
+          <div class="np-name">${contact.name}</div>
+          <div class="np-row"><span>Email</span><span>${contact.email}</span></div>
+          <div class="np-row"><span>Phone</span><span>${contact.phone}</span></div>
+          <div class="np-row"><span>Contact via</span><span>${contact.modeOfContact}</span></div>
+        </div>`;
     }
     document.getElementById('npModal').classList.add('visible');
   }
