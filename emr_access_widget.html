@@ -502,7 +502,9 @@ body {
         ['AddRecord', 'EMR_Access_Log', null, {
           Practitioner: row.practName,
           Facility:     facName,
-          Row_ID:       row.id
+          Row_ID:       row.id,
+          User_Name:    currentUser.name,
+          User_Email:   currentUser.email
         }]
       ]);
     } catch(e) { console.warn('Log write failed:', e); }
