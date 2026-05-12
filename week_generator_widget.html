@@ -54,6 +54,70 @@ body {
   color: #2d6a4f; margin-bottom: 20px; min-height: 32px;
 }
 
+/* ── Pre-flight checklist ── */
+.checklist-section {
+  border: 1px solid #e8e5e0;
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  background: #fdfcfb;
+}
+
+.checklist-header {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.07em; color: #aaa;
+  font-family: 'DM Mono', monospace; margin-bottom: 12px;
+  display: flex; align-items: center; gap: 6px;
+}
+
+.checklist-header::before {
+  content: '';
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #f0a500;
+}
+
+.checklist-item {
+  display: flex;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0ede8;
+  align-items: flex-start;
+}
+.checklist-item:last-child { border-bottom: none; padding-bottom: 0; }
+.checklist-item:first-child { padding-top: 0; }
+
+.check-num {
+  font-size: 10px; font-family: 'DM Mono', monospace;
+  color: #bbb; min-width: 16px; margin-top: 1px;
+  font-weight: 500;
+}
+
+.check-text {
+  font-size: 12px; color: #555; line-height: 1.5;
+}
+
+.check-text strong {
+  color: #333; font-weight: 600;
+}
+
+.check-text .tag {
+  display: inline-block;
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #fce08a;
+  border-radius: 4px;
+  padding: 0px 5px;
+  font-size: 10px;
+  font-family: 'DM Mono', monospace;
+  font-weight: 500;
+  vertical-align: middle;
+  margin: 0 1px;
+}
+
+/* ── end checklist ── */
+
 .btn {
   width: 100%; padding: 11px;
   background: #1a1916; color: #fff; border: none;
@@ -107,6 +171,31 @@ body {
     <div class="preview" id="preview">Fill in week number and date above</div>
   </div>
 
+  <!-- Pre-flight checklist -->
+  <div class="checklist-section">
+    <div class="checklist-header">Before You Generate</div>
+
+    <div class="checklist-item">
+      <span class="check-num">01</span>
+      <span class="check-text">Ensure no rows in <strong>Practitioner Name</strong> or <strong>Facility Name</strong> are highlighted <span class="tag">orange</span> — this indicates a duplicate entry that must be resolved.</span>
+    </div>
+
+    <div class="checklist-item">
+      <span class="check-num">02</span>
+      <span class="check-text">If only the <strong>Facility Name</strong> cell is <span class="tag">orange</span>, the facility may be intentionally covered by multiple practitioners. Verify before proceeding.</span>
+    </div>
+
+    <div class="checklist-item">
+      <span class="check-num">03</span>
+      <span class="check-text">Confirm all <strong>Backup</strong> coverage types have an <strong>End Date</strong> set.</span>
+    </div>
+
+    <div class="checklist-item">
+      <span class="check-num">04</span>
+      <span class="check-text">Review the <strong>Coverage Audit</strong> widget for facilities missing coverage and update the schedule as needed.</span>
+    </div>
+  </div>
+
   <button class="btn" id="generateBtn" onclick="generate()">Generate Week Rows</button>
 
   <div class="log" id="log"></div>
@@ -114,7 +203,6 @@ body {
 
 <script>
   document.addEventListener('DOMContentLoaded', () => {
-    // Auto-detect next Sunday
     const today = new Date();
     const day = today.getDay();
     const daysUntilSunday = day === 0 ? 7 : 7 - day;
@@ -122,7 +210,6 @@ body {
     nextSunday.setDate(today.getDate() + daysUntilSunday);
     document.getElementById('weekDate').value = nextSunday.toISOString().split('T')[0];
 
-    // Attach listeners
     document.getElementById('weekNum').addEventListener('input', updatePreview);
     document.getElementById('weekDate').addEventListener('input', updatePreview);
     document.getElementById('weekDate').addEventListener('change', updatePreview);
@@ -182,7 +269,6 @@ body {
 
     clearLog();
 
-    // ── Duplicate check ──
     addLog('Checking for duplicates in Weekly Coverage Schedule…', 'info');
     try {
       const coverage = await grist.docApi.fetchTable('Weekly_Coverage_Schedule');
@@ -220,7 +306,6 @@ body {
     btn.textContent = 'Working…';
 
     try {
-      // Step 1: Add week to Weeks_Table
       addLog(`Creating week: ${weekLabel}`, 'info');
       const weekResult = await grist.docApi.applyUserActions([
         ['AddRecord', 'Weeks_Table', null, { Week: weekLabel }]
@@ -231,7 +316,6 @@ body {
         || weekResult;
       addLog(`✓ Week created (id: ${weekId})`, 'success');
 
-      // Step 2: Get Coverage records
       addLog('Fetching Coverage records…', 'info');
       const covRecords = await grist.docApi.fetchTable('Weekly_Coverage_Schedule');
       addLog(`Found ${covRecords.id.length} coverage records`, 'info');
@@ -240,7 +324,6 @@ body {
       const weekEndDate = new Date(weekStartDate);
       weekEndDate.setDate(weekStartDate.getDate() + 6);
 
-      // Step 3: Filter active records and build Week_List rows
       let created = 0;
       const actions = [];
 
@@ -261,8 +344,8 @@ body {
             Practitioner_Name: covRecords.Practitioner_Name[i],
             Facility_Name:    covRecords.id[i],
             Coverage_Type:    ['L', covRecords.Coverage_Type[i]],
-            Overall_Status:   'Expected to Round',  // ← auto-fill
-            Audit_Status:     'Not Initiated'        // ← auto-fill
+            Overall_Status:   'Expected to Round',
+            Audit_Status:     'Not Initiated'
           }]);
           created++;
         }
@@ -275,7 +358,6 @@ body {
 
       addLog(`Creating ${created} Week_List rows…`, 'info');
 
-      // Batch in groups of 50
       for (let i = 0; i < actions.length; i += 50) {
         const batch = actions.slice(i, i + 50);
         await grist.docApi.applyUserActions(batch);
