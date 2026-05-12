@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EMR Update</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: #f1f0ed;
+  min-height: 100vh;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.header-title {
+  font-size: 14px; font-weight: 700; color: #111;
+  display: flex; align-items: center; gap: 8px;
+}
+.record-badge {
+  font-family: 'DM Mono', monospace; font-size: 10px;
+  background: #1a1916; color: #fff;
+  padding: 2px 8px; border-radius: 10px;
+}
+
+/* ── Select dropdowns ── */
+.select-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  margin-bottom: 16px;
+}
+.field-group { display: flex; flex-direction: column; gap: 5px; }
+.field-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.07em; color: #888; font-family: 'DM Mono', monospace;
+}
+.field-select {
+  width: 100%; padding: 8px 32px 8px 12px;
+  border: 1.5px solid #e0deda; border-radius: 8px;
+  font-family: 'DM Sans', sans-serif; font-size: 13px;
+  color: #111; background: #fff; outline: none; cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center;
+  transition: border-color 0.15s;
+}
+.field-select:focus { border-color: #2d6a4f; }
+.field-select:disabled { color: #bbb; background: #f8f7f5; cursor: not-allowed; }
+
+/* ── Main edit card ── */
+.edit-card {
+  background: #fff; border-radius: 12px;
+  border: 1px solid #e0deda; padding: 20px;
+}
+
+.form-layout {
+  display: grid;
+  grid-template-columns: 1fr 220px;
+  gap: 16px;
+  align-items: start;
+}
+
+.fields-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.input-group { display: flex; flex-direction: column; gap: 5px; }
+.input-group.span-2 { grid-column: span 2; }
+
+.input-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.07em; color: #888; font-family: 'DM Mono', monospace;
+}
+
+.input-field {
+  width: 100%; padding: 8px 12px;
+  border: 1.5px solid #e0deda; border-radius: 8px;
+  font-family: 'DM Mono', monospace; font-size: 12px;
+  color: #111; background: #fafaf8; outline: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+.input-field:focus { border-color: #2d6a4f; background: #fff; }
+.input-field.changed { border-color: #f0a500; background: #fffbf0; }
+
+textarea.input-field {
+  resize: vertical; min-height: 60px; font-size: 12px; line-height: 1.4;
+}
+
+/* Password field with copy */
+.pw-wrap { display: flex; gap: 6px; }
+.pw-wrap .input-field { flex: 1; }
+.copy-btn {
+  padding: 0 10px; border-radius: 8px;
+  border: 1.5px solid #e0deda; background: #fff;
+  font-size: 11px; font-family: 'DM Mono', monospace;
+  color: #888; cursor: pointer; white-space: nowrap;
+  transition: all 0.15s;
+}
+.copy-btn:hover { border-color: #2d6a4f; color: #2d6a4f; }
+.copy-btn.copied { border-color: #2d6a4f; color: #2d6a4f; background: #e8f5e9; }
+
+/* ── QR Panel ── */
+.qr-panel {
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+.qr-preview {
+  background: #f8f7f5; border: 1px solid #e0deda;
+  border-radius: 10px; padding: 12px;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  min-height: 200px; justify-content: center;
+}
+.qr-img {
+  width: 180px; height: 180px; object-fit: contain;
+  border-radius: 6px; cursor: pointer;
+}
+.qr-hint { font-family: 'DM Mono', monospace; font-size: 9px; color: #bbb; }
+.qr-none { font-family: 'DM Mono', monospace; font-size: 11px; color: #ccc; }
+
+/* ── Action buttons ── */
+.btn-row {
+  display: flex; gap: 8px; margin-top: 16px;
+}
+.btn-save {
+  flex: 1; padding: 10px;
+  background: #1a1916; color: #fff; border: none;
+  border-radius: 8px; font-family: 'DM Sans', sans-serif;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+.btn-save:hover { background: #2d6a4f; }
+.btn-save:active { transform: scale(0.98); }
+.btn-save:disabled { background: #ccc; cursor: not-allowed; }
+.btn-discard {
+  padding: 10px 16px; border-radius: 8px;
+  border: 1.5px solid #e0deda; background: #fff;
+  font-family: 'DM Sans', sans-serif; font-size: 13px;
+  font-weight: 500; color: #888; cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-discard:hover { border-color: #b35a0a; color: #b35a0a; }
+
+/* ── Status ── */
+.status-bar {
+  font-family: 'DM Mono', monospace; font-size: 11px;
+  text-align: center; padding: 6px 0; color: #aaa;
+  min-height: 24px;
+}
+.status-bar.success { color: #2d6a4f; }
+.status-bar.error { color: #b35a0a; }
+.status-bar.pending { color: #f0a500; }
+
+/* ── Empty state ── */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 40px; color: #aaa;
+  font-family: 'DM Mono', monospace; font-size: 12px; gap: 8px;
+  background: #fff; border-radius: 12px; border: 1px solid #e0deda;
+}
+
+/* ── QR Overlay ── */
+#qrOverlay {
+  display: none; position: fixed; top: 0; left: 0;
+  width: 100%; height: 100%; background: rgba(0,0,0,0.88);
+  z-index: 9999; align-items: center; justify-content: center;
+  flex-direction: column; gap: 16px;
+}
+#qrOverlay.visible { display: flex; }
+#qrOverlay img { max-width: 88vw; max-height: 78vh; border-radius: 12px; background: #fff; padding: 14px; }
+#qrOverlay .close-qr {
+  color: #fff; font-family: 'DM Mono', monospace; font-size: 13px;
+  cursor: pointer; padding: 8px 24px; border-radius: 8px;
+  border: 1.5px solid rgba(255,255,255,0.4); background: rgba(255,255,255,0.1);
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title">
+    ✏️ EMR Update
+    <span class="record-badge" id="recordBadge">—</span>
+  </div>
+</div>
+
+<div class="select-row">
+  <div class="field-group">
+    <span class="field-label">Practitioner</span>
+    <select class="field-select" id="practSelect" onchange="onPractChange()">
+      <option value="">— Select practitioner —</option>
+    </select>
+  </div>
+  <div class="field-group">
+    <span class="field-label">Facility</span>
+    <select class="field-select" id="facSelect" onchange="onFacChange()" disabled>
+      <option value="">— Select facility —</option>
+    </select>
+  </div>
+</div>
+
+<div id="emptyState" class="empty-state">
+  <span style="font-size:24px;">🔍</span>
+  <span>Select a practitioner and facility to edit</span>
+</div>
+
+<div id="editCard" class="edit-card" style="display:none;">
+  <div class="form-layout">
+    <div class="fields-grid">
+
+      <div class="input-group">
+        <span class="input-label">Username</span>
+        <input type="text" class="input-field" id="f_username" oninput="markChanged(this)" />
+      </div>
+
+      <div class="input-group">
+        <span class="input-label">Password</span>
+        <div class="pw-wrap">
+          <input type="text" class="input-field" id="f_password" oninput="markChanged(this)" />
+          <button class="copy-btn" id="copyBtn" onclick="copyPassword()">⎘</button>
+        </div>
+      </div>
+
+      <div class="input-group">
+        <span class="input-label">EHR System</span>
+        <input type="text" class="input-field" id="f_ehr" oninput="markChanged(this)" />
+      </div>
+
+      <div class="input-group">
+        <span class="input-label">Access Type</span>
+        <input type="text" class="input-field" id="f_accessType" oninput="markChanged(this)" />
+      </div>
+
+      <div class="input-group">
+        <span class="input-label">Primary / Backup</span>
+        <input type="text" class="input-field" id="f_primaryBackup" oninput="markChanged(this)" />
+      </div>
+
+      <div class="input-group">
+        <span class="input-label">Billing Access Type</span>
+        <input type="text" class="input-field" id="f_billing" oninput="markChanged(this)" />
+      </div>
+
+      <div class="input-group span-2">
+        <span class="input-label">QR Code URL</span>
+        <input type="text" class="input-field" id="f_qr" oninput="markChanged(this); updateQRPreview()" placeholder="https://..." />
+      </div>
+
+      <div class="input-group span-2">
+        <span class="input-label">Notes</span>
+        <textarea class="input-field" id="f_notes" oninput="markChanged(this)"></textarea>
+      </div>
+
+    </div>
+
+    <!-- QR Panel -->
+    <div class="qr-panel">
+      <span class="input-label">QR Preview</span>
+      <div class="qr-preview" id="qrPreview">
+        <div class="qr-none">No QR URL</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn-discard" onclick="discardChanges()">✕ Discard</button>
+    <button class="btn-save" id="saveBtn" onclick="saveRecord()">💾 Save Changes</button>
+  </div>
+
+  <div class="status-bar" id="statusBar"></div>
+</div>
+
+<!-- QR Overlay -->
+<div id="qrOverlay">
+  <div style="color:rgba(255,255,255,0.6);font-family:'DM Mono',monospace;font-size:11px;">Tap image to close</div>
+  <img id="qrOverlayImg" src="" onclick="closeQR()" />
+  <button class="close-qr" onclick="closeQR()">✕ Close</button>
+</div>
+
+<script>
+  let emrData = [];
+  let currentRow = null;
+  let originalValues = {};
+
+  grist.ready({ requiredAccess: 'full' });
+
+  async function init() {
+    setStatus('Loading…');
+    try {
+      const emr = await grist.docApi.fetchTable('EMR_Access');
+      emrData = [];
+      for (let i = 0; i < emr.id.length; i++) {
+        const practName = emr.Practitioner_Name?.[i] || '';
+        const facName   = emr.Facility_Name?.[i]     || '';
+        if (!practName && !facName) continue;
+        emrData.push({
+          id:            emr.id[i],
+          practName,
+          facName,
+          username:      emr.Username?.[i]            || '',
+          password:      emr.Password?.[i]            || '',
+          ehrSystem:     emr.EHR_System?.[i]          || '',
+          accessType:    emr.Access_Type?.[i]         || '',
+          primaryBackup: emr.Primary_Backup?.[i]      || '',
+          billing:       emr.Billing_Access_Type?.[i] || '',
+          notes:         emr.Notes?.[i]               || '',
+          qrCode:        emr.QR_Code?.[i]             || ''
+        });
+      }
+      document.getElementById('recordBadge').textContent = emrData.length + ' records';
+      buildPractDropdown();
+      setStatus('');
+    } catch(e) {
+      setStatus('Error loading: ' + e.message, 'error');
+    }
+  }
+
+  function buildPractDropdown() {
+    const sel = document.getElementById('practSelect');
+    sel.innerHTML = '<option value="">— Select practitioner —</option>';
+    const seen = new Set();
+    emrData.forEach(r => {
+      if (r.practName && !seen.has(r.practName)) {
+        seen.add(r.practName);
+        const o = document.createElement('option');
+        o.value = r.practName; o.textContent = r.practName;
+        sel.appendChild(o);
+      }
+    });
+  }
+
+  function onPractChange() {
+    const practName = document.getElementById('practSelect').value;
+    const facSel = document.getElementById('facSelect');
+    facSel.innerHTML = '<option value="">— Select facility —</option>';
+    facSel.disabled = !practName;
+    hideEditCard();
+    if (!practName) return;
+    const seen = new Set();
+    emrData.forEach(r => {
+      if (r.practName === practName && r.facName && !seen.has(r.facName)) {
+        seen.add(r.facName);
+        const o = document.createElement('option');
+        o.value = r.facName; o.textContent = r.facName;
+        facSel.appendChild(o);
+      }
+    });
+  }
+
+  function onFacChange() {
+    const practName = document.getElementById('practSelect').value;
+    const facName   = document.getElementById('facSelect').value;
+    if (!practName || !facName) { hideEditCard(); return; }
+    const row = emrData.find(r => r.practName === practName && r.facName === facName);
+    if (!row) { setStatus('Record not found.', 'error'); return; }
+    currentRow = row;
+    populateForm(row);
+    showEditCard();
+    setStatus('');
+  }
+
+  function populateForm(row) {
+    document.getElementById('f_username').value     = row.username;
+    document.getElementById('f_password').value     = row.password;
+    document.getElementById('f_ehr').value          = row.ehrSystem;
+    document.getElementById('f_accessType').value   = row.accessType;
+    document.getElementById('f_primaryBackup').value= row.primaryBackup;
+    document.getElementById('f_billing').value      = row.billing;
+    document.getElementById('f_notes').value        = row.notes;
+    document.getElementById('f_qr').value           = row.qrCode;
+
+    // Store originals
+    originalValues = {
+      username: row.username, password: row.password,
+      ehrSystem: row.ehrSystem, accessType: row.accessType,
+      primaryBackup: row.primaryBackup, billing: row.billing,
+      notes: row.notes, qrCode: row.qrCode
+    };
+
+    // Clear changed states
+    document.querySelectorAll('.input-field').forEach(el => el.classList.remove('changed'));
+
+    updateQRPreview();
+  }
+
+  function markChanged(el) {
+    el.classList.add('changed');
+  }
+
+  function updateQRPreview() {
+    const url = document.getElementById('f_qr').value.trim();
+    const preview = document.getElementById('qrPreview');
+    if (!url || !url.startsWith('http')) {
+      preview.innerHTML = '<div class="qr-none">No QR URL</div>';
+      return;
+    }
+    preview.innerHTML = '';
+    const img = document.createElement('img');
+    img.className = 'qr-img';
+    img.src = url;
+    img.title = 'Click to enlarge';
+    img.onclick = () => { document.getElementById('qrOverlayImg').src = url; document.getElementById('qrOverlay').classList.add('visible'); };
+    img.onload = () => {
+      preview.appendChild(img);
+      const hint = document.createElement('div');
+      hint.className = 'qr-hint'; hint.textContent = 'Tap to enlarge';
+      preview.appendChild(hint);
+    };
+    img.onerror = () => {
+      preview.innerHTML = '<div class="qr-none">⚠ Could not load image</div>';
+    };
+  }
+
+  async function saveRecord() {
+    if (!currentRow) return;
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    setStatus('Saving changes…', 'pending');
+
+    const updates = {
+      Username:            document.getElementById('f_username').value.trim(),
+      Password:            document.getElementById('f_password').value.trim(),
+      EHR_System:          document.getElementById('f_ehr').value.trim(),
+      Access_Type:         document.getElementById('f_accessType').value.trim(),
+      Primary_Backup:      document.getElementById('f_primaryBackup').value.trim(),
+      Billing_Access_Type: document.getElementById('f_billing').value.trim(),
+      Notes:               document.getElementById('f_notes').value.trim(),
+      QR_Code:             document.getElementById('f_qr').value.trim(),
+    };
+
+    try {
+      await grist.docApi.applyUserActions([
+        ['UpdateRecord', 'EMR_Access', currentRow.id, updates]
+      ]);
+
+      // Update local cache
+      Object.assign(currentRow, {
+        username: updates.Username, password: updates.Password,
+        ehrSystem: updates.EHR_System, accessType: updates.Access_Type,
+        primaryBackup: updates.Primary_Backup, billing: updates.Billing_Access_Type,
+        notes: updates.Notes, qrCode: updates.QR_Code
+      });
+      originalValues = { ...updates };
+
+      // Clear changed states
+      document.querySelectorAll('.input-field').forEach(el => el.classList.remove('changed'));
+      setStatus('✓ Saved successfully', 'success');
+      setTimeout(() => setStatus(''), 3000);
+    } catch(e) {
+      setStatus('Error saving: ' + e.message, 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = '💾 Save Changes';
+    }
+  }
+
+  function discardChanges() {
+    if (!currentRow) return;
+    populateForm(currentRow);
+    setStatus('Changes discarded', '');
+    setTimeout(() => setStatus(''), 2000);
+  }
+
+  function copyPassword() {
+    const pw = document.getElementById('f_password').value;
+    navigator.clipboard.writeText(pw).then(() => {
+      const btn = document.getElementById('copyBtn');
+      btn.textContent = '✓'; btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = '⎘'; btn.classList.remove('copied'); }, 2000);
+    });
+  }
+
+  function showEditCard() {
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('editCard').style.display = 'block';
+  }
+
+  function hideEditCard() {
+    document.getElementById('emptyState').style.display = 'flex';
+    document.getElementById('editCard').style.display = 'none';
+    currentRow = null;
+  }
+
+  function closeQR() {
+    document.getElementById('qrOverlay').classList.remove('visible');
+    document.getElementById('qrOverlayImg').src = '';
+  }
+
+  function setStatus(msg, type = '') {
+    const el = document.getElementById('statusBar');
+    if (!el) return;
+    el.textContent = msg;
+    el.className = 'status-bar' + (type ? ' ' + type : '');
+  }
+
+  init();
+</script>
+</body>
+</html>
