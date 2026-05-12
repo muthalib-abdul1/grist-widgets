@@ -113,8 +113,8 @@ tbody td:first-child {
   let cachedWeekIdToLabel = {};
   let allCoordinators = [];
 
-  grist.ready({ requiredAccess: 'full', allowSelectBy: true });
-
+  grist.ready({ requiredAccess: 'read table', allowSelectBy: true });
+  
   grist.onRecords(async (records) => {
     try {
       const wl = await grist.docApi.fetchTable('Week_List');
