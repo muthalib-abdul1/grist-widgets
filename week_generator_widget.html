@@ -100,9 +100,23 @@ body {
 
 .check-text .tag {
   display: inline-block;
-  background: #FD9D28;
-  color: black;
-  border: 1px solid #FD9D28;
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #fce08a;
+  border-radius: 4px;
+  padding: 0px 5px;
+  font-size: 10px;
+  font-family: 'DM Mono', monospace;
+  font-weight: 500;
+  vertical-align: middle;
+  margin: 0 1px;
+}
+
+.check-text .tag-red {
+  display: inline-block;
+  background: #c0392b;
+  color: #fff;
+  border: 1px solid #a93226;
   border-radius: 4px;
   padding: 0px 5px;
   font-size: 10px;
@@ -178,7 +192,7 @@ body {
 
     <div class="checklist-item">
       <span class="check-num">02</span>
-      <span class="check-text">If only the <strong>Facility Name</strong> cell is <span class="tag">orange</span>, the facility may be intentionally covered by a backup practitioners. Verify before proceeding.</span>
+      <span class="check-text">If only the <strong>Facility Name</strong> cell is <span class="tag">orange</span>, the facility may be intentionally covered by multiple practitioners. Verify before proceeding.</span>
     </div>
 
     <div class="checklist-item">
@@ -190,17 +204,16 @@ body {
       <span class="check-num">04</span>
       <span class="check-text">Review the <strong>Coverage Audit</strong> widget for facilities missing coverage and update the schedule as needed.</span>
     </div>
-    
+
     <div class="checklist-item">
       <span class="check-num">05</span>
-      <span class="check-text">Ensure <strong>Weekly Coverage Schedule</strong> does not have blank cells in the <strong>Practitioner Name and Facility Name<strong> columns.</span>
+      <span class="check-text">Ensure <strong>Weekly Coverage Schedule</strong> does not have blank cells in the <strong>Practitioner Name</strong> and <strong>Facility Name</strong> columns.</span>
     </div>
 
     <div class="checklist-item">
       <span class="check-num">06</span>
-      <span class="check-text">Please make sure no row is highlighted <span class="tag">red</span>,. A red highlight means the values in the columns are not correctly linked to the master table. This could lead to discrepency in numbers and improper </span>
+      <span class="check-text">Please make sure no row is highlighted <span class="tag-red">red</span>. A red highlight means the values in the columns are not correctly linked to the master table. This could lead to discrepancy in numbers and improper reporting.</span>
     </div>
-        
   </div>
 
   <button class="btn" id="generateBtn" onclick="generate()">Generate Week Rows</button>
