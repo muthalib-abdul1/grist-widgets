@@ -307,12 +307,10 @@ body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; min-height: 100v
   function openNPModal() {
     const list = document.getElementById('npList');
     const selectedPract = document.getElementById('practSelect').value;
-    console.log('Selected practitioner:', selectedPract);
-    console.log('npData names:', npData.map(n => n.name));
-    console.log('npData length:', npData.length);
     const contact = npData.find(np => np.name === selectedPract);
     if (!contact) {
-      list.innerHTML = '<div class="np-empty">No contact details found for this practitioner.</div>';
+      const sample = npData.slice(0, 3).map(n => n.name).join(' | ') || 'none';
+      list.innerHTML = `<div class="np-empty">No match for: <b>${selectedPract}</b><br><br>Total loaded: ${npData.length}<br>Sample names: ${sample}</div>`;
     } else {
       list.innerHTML = `
         <div class="np-card">
