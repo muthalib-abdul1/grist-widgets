@@ -8,496 +8,406 @@
 <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-  font-family: 'DM Sans', sans-serif;
-  background: #f1f0ed;
-  min-height: 100vh;
-  padding: 16px;
-  overflow-y: auto;
-}
+body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; height: 100vh; overflow: hidden; display: flex; flex-direction: column; padding: 12px; gap: 10px; }
 
-.header {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 16px;
-}
-.header-title {
-  font-size: 14px; font-weight: 700; color: #111;
-  display: flex; align-items: center; gap: 8px;
-}
-.record-badge {
-  font-family: 'DM Mono', monospace; font-size: 10px;
-  background: #1a1916; color: #fff;
-  padding: 2px 8px; border-radius: 10px;
-}
+.top-bar { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.top-title { font-size: 13px; font-weight: 700; color: #111; }
+.record-badge { font-family: 'DM Mono', monospace; font-size: 10px; background: #1a1916; color: #fff; padding: 2px 8px; border-radius: 10px; }
+.search-input { margin-left: auto; padding: 6px 12px; border: 1.5px solid #e0deda; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 12px; color: #111; background: #fff; outline: none; width: 200px; transition: border-color 0.15s; }
+.search-input:focus { border-color: #2d6a4f; }
 
-/* ── Select dropdowns ── */
-.select-row {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
-  margin-bottom: 16px;
-}
-.field-group { display: flex; flex-direction: column; gap: 5px; }
-.field-label {
-  font-size: 10px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.07em; color: #888; font-family: 'DM Mono', monospace;
-}
-.field-select {
-  width: 100%; padding: 8px 32px 8px 12px;
-  border: 1.5px solid #e0deda; border-radius: 8px;
-  font-family: 'DM Sans', sans-serif; font-size: 13px;
-  color: #111; background: #fff; outline: none; cursor: pointer;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 12px center;
-  transition: border-color 0.15s;
-}
-.field-select:focus { border-color: #2d6a4f; }
-.field-select:disabled { color: #bbb; background: #f8f7f5; cursor: not-allowed; }
+.main-layout { display: grid; grid-template-columns: 220px 1fr; gap: 10px; flex: 1; min-height: 0; }
 
-/* ── Main edit card ── */
-.edit-card {
-  background: #fff; border-radius: 12px;
-  border: 1px solid #e0deda; padding: 20px;
-}
+.pract-list { background: #fff; border-radius: 10px; border: 1px solid #e0deda; overflow-y: auto; display: flex; flex-direction: column; min-height: 0; }
+.pract-list-header { padding: 10px 14px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #aaa; font-family: 'DM Mono', monospace; border-bottom: 1px solid #f0eeea; flex-shrink: 0; }
+.pract-item { padding: 10px 14px; cursor: pointer; border-bottom: 1px solid #f8f7f5; transition: background 0.12s; }
+.pract-item:hover { background: #f8f7f5; }
+.pract-item.active { background: #1a1916; }
+.pract-item.active .pract-name { color: #fff; }
+.pract-item.active .pract-count { color: rgba(255,255,255,0.45); }
+.pract-name { font-size: 12px; font-weight: 600; color: #111; }
+.pract-count { font-size: 10px; font-family: 'DM Mono', monospace; color: #aaa; margin-top: 2px; }
 
-.form-layout {
-  display: grid;
-  grid-template-columns: 1fr 220px;
-  gap: 16px;
-  align-items: start;
-}
+.cards-panel { overflow-y: auto; display: flex; flex-direction: column; gap: 10px; min-height: 0; padding-right: 2px; }
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #bbb; font-family: 'DM Mono', monospace; font-size: 12px; gap: 8px; }
 
-.fields-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
+.fac-card { background: #fff; border-radius: 10px; border: 1px solid #e0deda; padding: 16px; transition: border-color 0.2s; flex-shrink: 0; }
+.fac-card.dirty { border-color: #f0a500; }
+.fac-card.saved-ok { border-color: #2d6a4f; }
 
-.input-group { display: flex; flex-direction: column; gap: 5px; }
-.input-group.span-2 { grid-column: span 2; }
+.fac-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid #f0eeea; }
+.fac-name { font-size: 13px; font-weight: 700; color: #111; }
+.card-actions { display: flex; gap: 6px; align-items: center; }
+.save-btn { padding: 4px 14px; border-radius: 6px; background: #1a1916; color: #fff; border: none; font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 600; cursor: pointer; transition: background 0.15s; display: none; }
+.save-btn:hover { background: #2d6a4f; }
+.save-btn.visible { display: inline-block; }
+.save-btn:disabled { background: #ccc; cursor: not-allowed; }
+.discard-btn { padding: 4px 10px; border-radius: 6px; background: #fff; color: #aaa; border: 1.5px solid #e0deda; font-family: 'DM Sans', sans-serif; font-size: 11px; cursor: pointer; transition: all 0.15s; display: none; }
+.discard-btn:hover { border-color: #b35a0a; color: #b35a0a; }
+.discard-btn.visible { display: inline-block; }
+.saved-tag { font-family: 'DM Mono', monospace; font-size: 10px; color: #2d6a4f; display: none; }
+.saved-tag.visible { display: inline-block; }
 
-.input-label {
-  font-size: 10px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.07em; color: #888; font-family: 'DM Mono', monospace;
-}
+.card-body { display: grid; grid-template-columns: 1fr 170px; gap: 16px; align-items: start; }
 
-.input-field {
-  width: 100%; padding: 8px 12px;
-  border: 1.5px solid #e0deda; border-radius: 8px;
-  font-family: 'DM Mono', monospace; font-size: 12px;
-  color: #111; background: #fafaf8; outline: none;
-  transition: border-color 0.15s, background 0.15s;
-}
-.input-field:focus { border-color: #2d6a4f; background: #fff; }
-.input-field.changed { border-color: #f0a500; background: #fffbf0; }
+.fields-left { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.field-group { display: flex; flex-direction: column; gap: 4px; }
+.field-group.full { grid-column: span 2; }
 
-textarea.input-field {
-  resize: vertical; min-height: 60px; font-size: 12px; line-height: 1.4;
+.field-lbl { font-size: 12px; font-weight: 700; color: #111; font-family: 'DM Sans', sans-serif; }
+.field-inp {
+  width: 100%; padding: 6px 10px; border: 1.5px solid #e8e5e0; border-radius: 6px;
+  font-family: 'DM Sans', sans-serif; font-size: 12px; color: #111; font-weight: 400;
+  background: #fafaf8; outline: none; transition: border-color 0.15s, background 0.15s;
 }
+.field-inp:focus { border-color: #2d6a4f; background: #fff; }
+.field-inp.changed { border-color: #f0a500; background: #fffbf0; }
+.field-inp.url-inp { color: #1a56db; }
+textarea.field-inp { resize: vertical; min-height: 52px; line-height: 1.5; }
 
-/* Password field with copy */
-.pw-wrap { display: flex; gap: 6px; }
-.pw-wrap .input-field { flex: 1; }
-.copy-btn {
-  padding: 0 10px; border-radius: 8px;
-  border: 1.5px solid #e0deda; background: #fff;
-  font-size: 11px; font-family: 'DM Mono', monospace;
-  color: #888; cursor: pointer; white-space: nowrap;
-  transition: all 0.15s;
-}
+.pw-row { display: flex; gap: 5px; }
+.pw-row .field-inp { flex: 1; min-width: 0; }
+.copy-btn { flex-shrink: 0; padding: 0 8px; border-radius: 6px; border: 1.5px solid #e8e5e0; background: #fff; font-size: 11px; color: #aaa; cursor: pointer; transition: all 0.15s; height: 32px; }
 .copy-btn:hover { border-color: #2d6a4f; color: #2d6a4f; }
-.copy-btn.copied { border-color: #2d6a4f; color: #2d6a4f; background: #e8f5e9; }
+.copy-btn.copied { background: #e8f5e9; border-color: #2d6a4f; color: #2d6a4f; }
 
-/* ── QR Panel ── */
-.qr-panel {
-  display: flex; flex-direction: column; gap: 10px;
-}
+.qr-right { display: flex; flex-direction: column; gap: 8px; }
+.qr-img-box { width: 170px; height: 170px; border-radius: 8px; border: 1px solid #e0deda; background: #f8f7f5; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer; flex-shrink: 0; }
+.qr-img-box img { width: 100%; height: 100%; object-fit: contain; }
+.qr-no-img { font-family: 'DM Mono', monospace; font-size: 10px; color: #ccc; text-align: center; padding: 8px; }
 
-.qr-preview {
-  background: #f8f7f5; border: 1px solid #e0deda;
-  border-radius: 10px; padding: 12px;
-  display: flex; flex-direction: column; align-items: center; gap: 8px;
-  min-height: 200px; justify-content: center;
-}
-.qr-img {
-  width: 180px; height: 180px; object-fit: contain;
-  border-radius: 6px; cursor: pointer;
-}
-.qr-hint { font-family: 'DM Mono', monospace; font-size: 9px; color: #bbb; }
-.qr-none { font-family: 'DM Mono', monospace; font-size: 11px; color: #ccc; }
+.loading-state { text-align: center; padding: 40px; font-family: 'DM Mono', monospace; font-size: 12px; color: #aaa; }
 
-/* ── Action buttons ── */
-.btn-row {
-  display: flex; gap: 8px; margin-top: 16px;
-}
-.btn-save {
-  flex: 1; padding: 10px;
-  background: #1a1916; color: #fff; border: none;
-  border-radius: 8px; font-family: 'DM Sans', sans-serif;
-  font-size: 13px; font-weight: 600; cursor: pointer;
-  transition: background 0.15s, transform 0.1s;
-}
-.btn-save:hover { background: #2d6a4f; }
-.btn-save:active { transform: scale(0.98); }
-.btn-save:disabled { background: #ccc; cursor: not-allowed; }
-.btn-discard {
-  padding: 10px 16px; border-radius: 8px;
-  border: 1.5px solid #e0deda; background: #fff;
-  font-family: 'DM Sans', sans-serif; font-size: 13px;
-  font-weight: 500; color: #888; cursor: pointer;
-  transition: all 0.15s;
-}
-.btn-discard:hover { border-color: #b35a0a; color: #b35a0a; }
-
-/* ── Status ── */
-.status-bar {
-  font-family: 'DM Mono', monospace; font-size: 11px;
-  text-align: center; padding: 6px 0; color: #aaa;
-  min-height: 24px;
-}
-.status-bar.success { color: #2d6a4f; }
-.status-bar.error { color: #b35a0a; }
-.status-bar.pending { color: #f0a500; }
-
-/* ── Empty state ── */
-.empty-state {
-  display: flex; flex-direction: column; align-items: center;
-  justify-content: center; padding: 40px; color: #aaa;
-  font-family: 'DM Mono', monospace; font-size: 12px; gap: 8px;
-  background: #fff; border-radius: 12px; border: 1px solid #e0deda;
-}
-
-/* ── QR Overlay ── */
-#qrOverlay {
-  display: none; position: fixed; top: 0; left: 0;
-  width: 100%; height: 100%; background: rgba(0,0,0,0.88);
-  z-index: 9999; align-items: center; justify-content: center;
-  flex-direction: column; gap: 16px;
-}
+#qrOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.88); z-index: 9999; align-items: center; justify-content: center; flex-direction: column; gap: 16px; }
 #qrOverlay.visible { display: flex; }
 #qrOverlay img { max-width: 88vw; max-height: 78vh; border-radius: 12px; background: #fff; padding: 14px; }
-#qrOverlay .close-qr {
-  color: #fff; font-family: 'DM Mono', monospace; font-size: 13px;
-  cursor: pointer; padding: 8px 24px; border-radius: 8px;
-  border: 1.5px solid rgba(255,255,255,0.4); background: rgba(255,255,255,0.1);
-}
+#qrOverlay .close-btn { color: #fff; font-family: 'DM Mono', monospace; font-size: 13px; cursor: pointer; padding: 8px 24px; border-radius: 8px; border: 1.5px solid rgba(255,255,255,0.4); background: rgba(255,255,255,0.1); }
+#qrOverlay .close-btn:hover { background: rgba(255,255,255,0.2); }
 </style>
 </head>
 <body>
 
-<div class="header">
-  <div class="header-title">
-    ✏️ EMR Update
-    <span class="record-badge" id="recordBadge">—</span>
-  </div>
+<div class="top-bar">
+  <div class="top-title">✏️ EMR Update</div>
+  <span class="record-badge" id="recordBadge">Loading…</span>
+  <input type="text" class="search-input" id="searchInput" placeholder="Search practitioner…" oninput="filterPractitioners()" />
 </div>
 
-<div class="select-row">
-  <div class="field-group">
-    <span class="field-label">Practitioner</span>
-    <select class="field-select" id="practSelect" onchange="onPractChange()">
-      <option value="">— Select practitioner —</option>
-    </select>
+<div class="main-layout">
+  <div class="pract-list" id="practList">
+    <div class="pract-list-header">Practitioners</div>
+    <div class="loading-state">Loading…</div>
   </div>
-  <div class="field-group">
-    <span class="field-label">Facility</span>
-    <select class="field-select" id="facSelect" onchange="onFacChange()" disabled>
-      <option value="">— Select facility —</option>
-    </select>
-  </div>
-</div>
-
-<div id="emptyState" class="empty-state">
-  <span style="font-size:24px;">🔍</span>
-  <span>Select a practitioner and facility to edit</span>
-</div>
-
-<div id="editCard" class="edit-card" style="display:none;">
-  <div class="form-layout">
-    <div class="fields-grid">
-
-      <div class="input-group">
-        <span class="input-label">Username</span>
-        <input type="text" class="input-field" id="f_username" oninput="markChanged(this)" />
-      </div>
-
-      <div class="input-group">
-        <span class="input-label">Password</span>
-        <div class="pw-wrap">
-          <input type="text" class="input-field" id="f_password" oninput="markChanged(this)" />
-          <button class="copy-btn" id="copyBtn" onclick="copyPassword()">⎘</button>
-        </div>
-      </div>
-
-      <div class="input-group">
-        <span class="input-label">EHR System</span>
-        <input type="text" class="input-field" id="f_ehr" oninput="markChanged(this)" />
-      </div>
-
-      <div class="input-group">
-        <span class="input-label">Access Type</span>
-        <input type="text" class="input-field" id="f_accessType" oninput="markChanged(this)" />
-      </div>
-
-      <div class="input-group">
-        <span class="input-label">Primary / Backup</span>
-        <input type="text" class="input-field" id="f_primaryBackup" oninput="markChanged(this)" />
-      </div>
-
-      <div class="input-group">
-        <span class="input-label">Billing Access Type</span>
-        <input type="text" class="input-field" id="f_billing" oninput="markChanged(this)" />
-      </div>
-
-      <div class="input-group span-2">
-        <span class="input-label">QR Code URL</span>
-        <input type="text" class="input-field" id="f_qr" oninput="markChanged(this); updateQRPreview()" placeholder="https://..." />
-      </div>
-
-      <div class="input-group span-2">
-        <span class="input-label">Notes</span>
-        <textarea class="input-field" id="f_notes" oninput="markChanged(this)"></textarea>
-      </div>
-
-    </div>
-
-    <!-- QR Panel -->
-    <div class="qr-panel">
-      <span class="input-label">QR Preview</span>
-      <div class="qr-preview" id="qrPreview">
-        <div class="qr-none">No QR URL</div>
-      </div>
+  <div class="cards-panel" id="cardsPanel">
+    <div class="empty-state">
+      <span style="font-size:28px;">👈</span>
+      <span>Select a practitioner to view facilities</span>
     </div>
   </div>
-
-  <div class="btn-row">
-    <button class="btn-discard" onclick="discardChanges()">✕ Discard</button>
-    <button class="btn-save" id="saveBtn" onclick="saveRecord()">💾 Save Changes</button>
-  </div>
-
-  <div class="status-bar" id="statusBar"></div>
 </div>
 
-<!-- QR Overlay -->
 <div id="qrOverlay">
-  <div style="color:rgba(255,255,255,0.6);font-family:'DM Mono',monospace;font-size:11px;">Tap image to close</div>
+  <div style="color:rgba(255,255,255,0.6);font-family:'DM Mono',monospace;font-size:11px;">Tap to close</div>
   <img id="qrOverlayImg" src="" onclick="closeQR()" />
-  <button class="close-qr" onclick="closeQR()">✕ Close</button>
+  <button class="close-btn" onclick="closeQR()">✕ Close</button>
 </div>
 
 <script>
-  let emrData = [];
-  let currentRow = null;
-  let originalValues = {};
+  let flatRecords = [];
+  let allPractitioners = [];
+  let selectedPract = null;
 
   grist.ready({ requiredAccess: 'full' });
 
   async function init() {
-    setStatus('Loading…');
     try {
-      const emr = await grist.docApi.fetchTable('EMR_Access');
-      emrData = [];
-      for (let i = 0; i < emr.id.length; i++) {
-        const practName = emr.Practitioner_Name?.[i] || '';
-        const facName   = emr.Facility_Name?.[i]     || '';
-        if (!practName && !facName) continue;
-        emrData.push({
-          id:            emr.id[i],
-          practName,
-          facName,
-          username:      emr.Username?.[i]            || '',
-          password:      emr.Password?.[i]            || '',
-          ehrSystem:     emr.EHR_System?.[i]          || '',
-          accessType:    emr.Access_Type?.[i]         || '',
-          primaryBackup: emr.Primary_Backup?.[i]      || '',
-          billing:       emr.Billing_Access_Type?.[i] || '',
-          notes:         emr.Notes?.[i]               || '',
-          qrCode:        emr.QR_Code?.[i]             || ''
-        });
-      }
-      document.getElementById('recordBadge').textContent = emrData.length + ' records';
-      buildPractDropdown();
-      setStatus('');
-    } catch(e) {
-      setStatus('Error loading: ' + e.message, 'error');
-    }
-  }
-
-  function buildPractDropdown() {
-    const sel = document.getElementById('practSelect');
-    sel.innerHTML = '<option value="">— Select practitioner —</option>';
-    const seen = new Set();
-    emrData.forEach(r => {
-      if (r.practName && !seen.has(r.practName)) {
-        seen.add(r.practName);
-        const o = document.createElement('option');
-        o.value = r.practName; o.textContent = r.practName;
-        sel.appendChild(o);
-      }
-    });
-  }
-
-  function onPractChange() {
-    const practName = document.getElementById('practSelect').value;
-    const facSel = document.getElementById('facSelect');
-    facSel.innerHTML = '<option value="">— Select facility —</option>';
-    facSel.disabled = !practName;
-    hideEditCard();
-    if (!practName) return;
-    const seen = new Set();
-    emrData.forEach(r => {
-      if (r.practName === practName && r.facName && !seen.has(r.facName)) {
-        seen.add(r.facName);
-        const o = document.createElement('option');
-        o.value = r.facName; o.textContent = r.facName;
-        facSel.appendChild(o);
-      }
-    });
-  }
-
-  function onFacChange() {
-    const practName = document.getElementById('practSelect').value;
-    const facName   = document.getElementById('facSelect').value;
-    if (!practName || !facName) { hideEditCard(); return; }
-    const row = emrData.find(r => r.practName === practName && r.facName === facName);
-    if (!row) { setStatus('Record not found.', 'error'); return; }
-    currentRow = row;
-    populateForm(row);
-    showEditCard();
-    setStatus('');
-  }
-
-  function populateForm(row) {
-    document.getElementById('f_username').value     = row.username;
-    document.getElementById('f_password').value     = row.password;
-    document.getElementById('f_ehr').value          = row.ehrSystem;
-    document.getElementById('f_accessType').value   = row.accessType;
-    document.getElementById('f_primaryBackup').value= row.primaryBackup;
-    document.getElementById('f_billing').value      = row.billing;
-    document.getElementById('f_notes').value        = row.notes;
-    document.getElementById('f_qr').value           = row.qrCode;
-
-    // Store originals
-    originalValues = {
-      username: row.username, password: row.password,
-      ehrSystem: row.ehrSystem, accessType: row.accessType,
-      primaryBackup: row.primaryBackup, billing: row.billing,
-      notes: row.notes, qrCode: row.qrCode
-    };
-
-    // Clear changed states
-    document.querySelectorAll('.input-field').forEach(el => el.classList.remove('changed'));
-
-    updateQRPreview();
-  }
-
-  function markChanged(el) {
-    el.classList.add('changed');
-  }
-
-  function updateQRPreview() {
-    const url = document.getElementById('f_qr').value.trim();
-    const preview = document.getElementById('qrPreview');
-    if (!url || !url.startsWith('http')) {
-      preview.innerHTML = '<div class="qr-none">No QR URL</div>';
-      return;
-    }
-    preview.innerHTML = '';
-    const img = document.createElement('img');
-    img.className = 'qr-img';
-    img.src = url;
-    img.title = 'Click to enlarge';
-    img.onclick = () => { document.getElementById('qrOverlayImg').src = url; document.getElementById('qrOverlay').classList.add('visible'); };
-    img.onload = () => {
-      preview.appendChild(img);
-      const hint = document.createElement('div');
-      hint.className = 'qr-hint'; hint.textContent = 'Tap to enlarge';
-      preview.appendChild(hint);
-    };
-    img.onerror = () => {
-      preview.innerHTML = '<div class="qr-none">⚠ Could not load image</div>';
-    };
-  }
-
-  async function saveRecord() {
-    if (!currentRow) return;
-    const btn = document.getElementById('saveBtn');
-    btn.disabled = true; btn.textContent = 'Saving…';
-    setStatus('Saving changes…', 'pending');
-
-    const updates = {
-      Username:            document.getElementById('f_username').value.trim(),
-      Password:            document.getElementById('f_password').value.trim(),
-      EHR_System:          document.getElementById('f_ehr').value.trim(),
-      Access_Type:         document.getElementById('f_accessType').value.trim(),
-      Primary_Backup:      document.getElementById('f_primaryBackup').value.trim(),
-      Billing_Access_Type: document.getElementById('f_billing').value.trim(),
-      Notes:               document.getElementById('f_notes').value.trim(),
-      QR_Code:             document.getElementById('f_qr').value.trim(),
-    };
-
-    try {
-      await grist.docApi.applyUserActions([
-        ['UpdateRecord', 'EMR_Access', currentRow.id, updates]
+      const [emr, employees, facilities] = await Promise.all([
+        grist.docApi.fetchTable('EMR_Access'),
+        grist.docApi.fetchTable('Employee'),
+        grist.docApi.fetchTable('Facility')
       ]);
 
-      // Update local cache
-      Object.assign(currentRow, {
-        username: updates.Username, password: updates.Password,
-        ehrSystem: updates.EHR_System, accessType: updates.Access_Type,
-        primaryBackup: updates.Primary_Backup, billing: updates.Billing_Access_Type,
-        notes: updates.Notes, qrCode: updates.QR_Code
-      });
-      originalValues = { ...updates };
+      const empMap = {};
+      for (let i = 0; i < employees.id.length; i++)
+        empMap[employees.id[i]] = employees.Employee_Name?.[i] || employees.Name?.[i] || employees.Full_Name?.[i] || employees.EmployeeName?.[i] || Object.values(employees).map(col => col[i]).find(v => typeof v === 'string' && v.length > 1) || String(employees.id[i]);
 
-      // Clear changed states
-      document.querySelectorAll('.input-field').forEach(el => el.classList.remove('changed'));
-      setStatus('✓ Saved successfully', 'success');
-      setTimeout(() => setStatus(''), 3000);
+      console.log('Employee columns:', Object.keys(employees));
+      console.log('Sample empMap entry:', Object.entries(empMap).slice(0,3));
+
+      const facMap = {};
+      for (let i = 0; i < facilities.id.length; i++)
+        facMap[facilities.id[i]] = facilities.Facility_Name?.[i] || '';
+
+      flatRecords = [];
+
+      for (let i = 0; i < emr.id.length; i++) {
+
+        // Resolve practitioner — single ref or RefList ['L', id]
+        let rawPract = emr.Practitioner_Name?.[i];
+        let practId;
+        if (Array.isArray(rawPract)) {
+          practId = rawPract.find(x => typeof x === 'number');
+        } else if (typeof rawPract === 'number') {
+          practId = rawPract;
+        }
+        const practName = (practId && empMap[practId]) ? empMap[practId] : '';
+
+        // Resolve facilities — single ref or RefList ['L', id1, id2, ...]
+        let rawFac = emr.Facility_Name?.[i];
+        let facIds = [];
+        if (Array.isArray(rawFac)) {
+          facIds = rawFac.filter(x => typeof x === 'number');
+        } else if (typeof rawFac === 'number') {
+          facIds = [rawFac];
+        }
+        if (facIds.length === 0) facIds = [null];
+
+        facIds.forEach((facId, j) => {
+          flatRecords.push({
+            rowId:         emr.id[i],
+            facId,
+            practName,
+            facName:       (facId && facMap[facId]) ? facMap[facId] : (facId ? String(facId) : '—'),
+            username:      emr.Username?.[i]            || '',
+            password:      emr.Password?.[i]            || '',
+            ehrSystem:     emr.EHR_System?.[i]          || '',
+            accessType:    emr.Access_Type?.[i]         || '',
+            primaryBackup: emr.Primary_Backup?.[i]      || '',
+            billing:       emr.Billing_Access_Type?.[i] || '',
+            notes:         emr.Notes?.[i]               || '',
+            qrCode:        emr.QR_Code?.[i]             || ''
+          });
+        });
+      }
+
+      document.getElementById('recordBadge').textContent = emr.id.length + ' records';
+
+      const seen = new Set();
+      allPractitioners = [];
+      flatRecords.forEach(r => {
+        if (r.practName && !seen.has(r.practName)) {
+          seen.add(r.practName);
+          allPractitioners.push(r.practName);
+        }
+      });
+      allPractitioners.sort();
+      renderPractList(allPractitioners);
+
     } catch(e) {
-      setStatus('Error saving: ' + e.message, 'error');
-    } finally {
-      btn.disabled = false; btn.textContent = '💾 Save Changes';
+      document.getElementById('practList').innerHTML =
+        '<div class="pract-list-header">Practitioners</div><div class="loading-state" style="color:#b35a0a">Error: ' + e.message + '</div>';
     }
   }
 
-  function discardChanges() {
-    if (!currentRow) return;
-    populateForm(currentRow);
-    setStatus('Changes discarded', '');
-    setTimeout(() => setStatus(''), 2000);
+  function renderPractList(practs) {
+    const container = document.getElementById('practList');
+    container.innerHTML = '<div class="pract-list-header">Practitioners</div>';
+    if (!practs.length) { container.innerHTML += '<div class="loading-state">No results</div>'; return; }
+    practs.forEach(name => {
+      const count = flatRecords.filter(r => r.practName === name).length;
+      const div = document.createElement('div');
+      div.className = 'pract-item' + (selectedPract === name ? ' active' : '');
+      div.innerHTML = `<div class="pract-name">${esc(name)}</div><div class="pract-count">${count} facilit${count===1?'y':'ies'}</div>`;
+      div.onclick = () => selectPractitioner(name);
+      container.appendChild(div);
+    });
   }
 
-  function copyPassword() {
-    const pw = document.getElementById('f_password').value;
+  function filterPractitioners() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    renderPractList(allPractitioners.filter(p => p.toLowerCase().includes(q)));
+  }
+
+  function selectPractitioner(name) {
+    selectedPract = name;
+    filterPractitioners();
+    renderCards(name);
+  }
+
+  function renderCards(practName) {
+    const panel = document.getElementById('cardsPanel');
+    const records = flatRecords.filter(r => r.practName === practName);
+
+    // Debug counter
+    const debug = document.createElement('div');
+    debug.style.cssText = 'font-family:DM Mono,monospace;font-size:11px;color:#888;padding:4px 0;flex-shrink:0;';
+    debug.textContent = `Found ${records.length} records for "${practName}" (total flatRecords: ${flatRecords.length})`;
+
+    if (!records.length) {
+      panel.innerHTML = '';
+      panel.appendChild(debug);
+      panel.innerHTML += '<div class="empty-state"><span>No facilities found</span></div>';
+      return;
+    }
+    panel.innerHTML = '';
+    panel.appendChild(debug);
+    records.sort((a, b) => a.facName.localeCompare(b.facName));
+    records.forEach((row, idx) => {
+      const key = 'k' + row.rowId + '_' + idx;
+      const card = buildCard(row, key);
+      card._origData = { ...row };
+      panel.appendChild(card);
+    });
+  }
+
+  function buildCard(row, key) {
+    const card = document.createElement('div');
+    card.className = 'fac-card';
+    card.id = 'card-' + key;
+    card.innerHTML = `
+      <div class="fac-card-header">
+        <div class="fac-name">${esc(row.facName)}</div>
+        <div class="card-actions">
+          <span class="saved-tag" id="savedtag-${key}">✓ Saved</span>
+          <button class="discard-btn" id="discard-${key}" onclick="discardCard('${key}')">✕ Discard</button>
+          <button class="save-btn" id="savebtn-${key}" onclick="saveCard('${key}', ${row.rowId})">💾 Save</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="fields-left">
+          <div class="field-group">
+            <span class="field-lbl">Username</span>
+            <input type="text" class="field-inp" id="${key}_username" value="${esc(row.username)}" oninput="markChanged('${key}',this)" />
+          </div>
+          <div class="field-group">
+            <span class="field-lbl">Password</span>
+            <div class="pw-row">
+              <input type="text" class="field-inp" id="${key}_password" value="${esc(row.password)}" oninput="markChanged('${key}',this)" />
+              <button class="copy-btn" id="copybtn-${key}" onclick="copyPw('${key}')">⎘</button>
+            </div>
+          </div>
+          <div class="field-group">
+            <span class="field-lbl">EHR System</span>
+            <input type="text" class="field-inp" id="${key}_ehr" value="${esc(row.ehrSystem)}" oninput="markChanged('${key}',this)" />
+          </div>
+          <div class="field-group">
+            <span class="field-lbl">Access Type</span>
+            <input type="text" class="field-inp" id="${key}_accessType" value="${esc(row.accessType)}" oninput="markChanged('${key}',this)" />
+          </div>
+          <div class="field-group">
+            <span class="field-lbl">Primary / Backup</span>
+            <input type="text" class="field-inp" id="${key}_primaryBackup" value="${esc(row.primaryBackup)}" oninput="markChanged('${key}',this)" />
+          </div>
+          <div class="field-group">
+            <span class="field-lbl">Billing Access</span>
+            <input type="text" class="field-inp" id="${key}_billing" value="${esc(row.billing)}" oninput="markChanged('${key}',this)" />
+          </div>
+          <div class="field-group full">
+            <span class="field-lbl">Notes</span>
+            <textarea class="field-inp" id="${key}_notes" oninput="markChanged('${key}',this)">${esc(row.notes)}</textarea>
+          </div>
+        </div>
+        <div class="qr-right">
+          <div class="qr-img-box" id="qrbox-${key}" onclick="openQRFromKey('${key}')">
+            ${row.qrCode && row.qrCode.startsWith('http')
+              ? `<img src="${esc(row.qrCode)}" onerror="this.parentElement.innerHTML='<div class=qr-no-img>⚠ Load error</div>'" />`
+              : `<div class="qr-no-img">No QR</div>`}
+          </div>
+          <div class="field-group">
+            <span class="field-lbl">QR Code URL</span>
+            <input type="text" class="field-inp url-inp" id="${key}_qr" value="${esc(row.qrCode)}"
+              oninput="markChanged('${key}',this); updateQRBox('${key}')" placeholder="https://…" />
+          </div>
+        </div>
+      </div>`;
+    return card;
+  }
+
+  function updateQRBox(key) {
+    const url = document.getElementById(key + '_qr').value.trim();
+    const box = document.getElementById('qrbox-' + key);
+    if (url && url.startsWith('http')) {
+      box.innerHTML = `<img src="${url}" onerror="this.parentElement.innerHTML='<div class=qr-no-img>⚠ Load error</div>'" />`;
+    } else {
+      box.innerHTML = '<div class="qr-no-img">No QR</div>';
+    }
+  }
+
+  function openQRFromKey(key) {
+    const url = document.getElementById(key + '_qr')?.value.trim();
+    if (url && url.startsWith('http')) openQR(url);
+  }
+
+  function markChanged(key, el) {
+    el.classList.add('changed');
+    document.getElementById('card-' + key).classList.add('dirty');
+    document.getElementById('card-' + key).classList.remove('saved-ok');
+    document.getElementById('savebtn-' + key).classList.add('visible');
+    document.getElementById('discard-' + key).classList.add('visible');
+    document.getElementById('savedtag-' + key).classList.remove('visible');
+  }
+
+  async function saveCard(key, rowId) {
+    const btn = document.getElementById('savebtn-' + key);
+    btn.disabled = true; btn.textContent = 'Saving…';
+    const updates = {
+      Username:            document.getElementById(key+'_username').value.trim(),
+      Password:            document.getElementById(key+'_password').value.trim(),
+      EHR_System:          document.getElementById(key+'_ehr').value.trim(),
+      Access_Type:         document.getElementById(key+'_accessType').value.trim(),
+      Primary_Backup:      document.getElementById(key+'_primaryBackup').value.trim(),
+      Billing_Access_Type: document.getElementById(key+'_billing').value.trim(),
+      Notes:               document.getElementById(key+'_notes').value.trim(),
+      QR_Code:             document.getElementById(key+'_qr').value.trim(),
+    };
+    try {
+      await grist.docApi.applyUserActions([['UpdateRecord', 'EMR_Access', rowId, updates]]);
+
+      // Update local cache
+      flatRecords.forEach(r => {
+        if (r.rowId === rowId) {
+          r.username = updates.Username; r.password = updates.Password;
+          r.ehrSystem = updates.EHR_System; r.accessType = updates.Access_Type;
+          r.primaryBackup = updates.Primary_Backup; r.billing = updates.Billing_Access_Type;
+          r.notes = updates.Notes; r.qrCode = updates.QR_Code;
+        }
+      });
+
+      const card = document.getElementById('card-' + key);
+      if (card._origData) Object.assign(card._origData, { username: updates.Username, password: updates.Password, ehrSystem: updates.EHR_System, accessType: updates.Access_Type, primaryBackup: updates.Primary_Backup, billing: updates.Billing_Access_Type, notes: updates.Notes, qrCode: updates.QR_Code });
+      card.classList.remove('dirty'); card.classList.add('saved-ok');
+      card.querySelectorAll('.field-inp').forEach(el => el.classList.remove('changed'));
+      btn.classList.remove('visible');
+      document.getElementById('discard-' + key).classList.remove('visible');
+      const tag = document.getElementById('savedtag-' + key);
+      tag.classList.add('visible');
+      setTimeout(() => { tag.classList.remove('visible'); card.classList.remove('saved-ok'); }, 3000);
+    } catch(e) { alert('Save failed: ' + e.message); }
+    finally { btn.disabled = false; btn.textContent = '💾 Save'; }
+  }
+
+  function discardCard(key) {
+    const card = document.getElementById('card-' + key);
+    const o = card._origData;
+    if (!o) return;
+    document.getElementById(key+'_username').value      = o.username      || '';
+    document.getElementById(key+'_password').value      = o.password      || '';
+    document.getElementById(key+'_ehr').value           = o.ehrSystem     || '';
+    document.getElementById(key+'_accessType').value    = o.accessType    || '';
+    document.getElementById(key+'_primaryBackup').value = o.primaryBackup || '';
+    document.getElementById(key+'_billing').value       = o.billing       || '';
+    document.getElementById(key+'_notes').value         = o.notes         || '';
+    document.getElementById(key+'_qr').value            = o.qrCode        || '';
+    updateQRBox(key);
+    card.classList.remove('dirty','saved-ok');
+    card.querySelectorAll('.field-inp').forEach(el => el.classList.remove('changed'));
+    document.getElementById('savebtn-' + key).classList.remove('visible');
+    document.getElementById('discard-' + key).classList.remove('visible');
+    document.getElementById('savedtag-' + key).classList.remove('visible');
+  }
+
+  function copyPw(key) {
+    const pw = document.getElementById(key + '_password').value;
     navigator.clipboard.writeText(pw).then(() => {
-      const btn = document.getElementById('copyBtn');
+      const btn = document.getElementById('copybtn-' + key);
       btn.textContent = '✓'; btn.classList.add('copied');
       setTimeout(() => { btn.textContent = '⎘'; btn.classList.remove('copied'); }, 2000);
     });
   }
 
-  function showEditCard() {
-    document.getElementById('emptyState').style.display = 'none';
-    document.getElementById('editCard').style.display = 'block';
-  }
-
-  function hideEditCard() {
-    document.getElementById('emptyState').style.display = 'flex';
-    document.getElementById('editCard').style.display = 'none';
-    currentRow = null;
-  }
-
-  function closeQR() {
-    document.getElementById('qrOverlay').classList.remove('visible');
-    document.getElementById('qrOverlayImg').src = '';
-  }
-
-  function setStatus(msg, type = '') {
-    const el = document.getElementById('statusBar');
-    if (!el) return;
-    el.textContent = msg;
-    el.className = 'status-bar' + (type ? ' ' + type : '');
-  }
+  function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function openQR(url) { document.getElementById('qrOverlayImg').src = url; document.getElementById('qrOverlay').classList.add('visible'); }
+  function closeQR() { document.getElementById('qrOverlay').classList.remove('visible'); document.getElementById('qrOverlayImg').src = ''; }
 
   init();
 </script>
