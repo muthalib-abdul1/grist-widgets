@@ -16,37 +16,96 @@ body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; min-height: 100v
 .field select { width: 100%; padding: 8px 12px; border: 1.5px solid #e0deda; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; color: #111; background: #fafaf8; outline: none; cursor: pointer; transition: border-color 0.15s; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
 .field select:focus { border-color: #2d6a4f; background-color: #fff; }
 .field select:disabled { color: #bbb; cursor: not-allowed; }
+
 #detailsPanel { display: none; margin-top: 16px; border-top: 1px solid #f0eeea; padding-top: 16px; }
 #detailsPanel.visible { display: block; }
+
 .timer-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
 .timer-bar-wrap { flex: 1; height: 6px; background: #f0eeea; border-radius: 3px; overflow: hidden; }
 .timer-bar { height: 100%; background: #2d6a4f; border-radius: 3px; transition: width 1s linear; width: 100%; }
 .timer-bar.warning { background: #e65100; }
 .timer-label { font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 700; color: #111; white-space: nowrap; min-width: 120px; text-align: right; }
 .timer-label.warning { color: #e65100; }
+
 .details-layout { display: grid; grid-template-columns: 1fr 200px; gap: 12px; align-items: start; }
 .fields-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; }
-.detail-item { background: #f8f7f5; border: 1px solid #e0deda; border-radius: 8px; padding: 10px 12px; }
+
+.detail-item { background: #f8f7f5; border: 1px solid #e0deda; border-radius: 8px; padding: 10px 12px; position: relative; }
 .detail-label { font-family: 'DM Mono', monospace; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: #aaa; margin-bottom: 4px; }
 .detail-value { font-family: 'DM Mono', monospace; font-size: 12px; color: #111; font-weight: 500; word-break: break-all; }
 .detail-value a { color: #2d6a4f; text-decoration: none; font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500; }
 .detail-value a:hover { text-decoration: underline; }
+
+/* ── Copy button ── */
+.copy-wrap { display: flex; align-items: center; gap: 6px; }
+.copy-btn {
+  background: none; border: 1px solid #e0deda; border-radius: 4px;
+  padding: 2px 6px; cursor: pointer; font-size: 11px; color: #888;
+  font-family: 'DM Mono', monospace; transition: all 0.15s; white-space: nowrap;
+}
+.copy-btn:hover { border-color: #2d6a4f; color: #2d6a4f; background: #f0f7f4; }
+.copy-btn.copied { border-color: #2d6a4f; color: #2d6a4f; background: #e8f5e9; }
+
+/* ── QR ── */
 .qr-panel { background: #f8f7f5; border: 1px solid #e0deda; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 8px; }
 .qr-img { width: 168px; height: 168px; object-fit: contain; border-radius: 6px; cursor: pointer; display: block; }
 .qr-hint { font-family: 'DM Mono', monospace; font-size: 9px; color: #bbb; text-align: center; }
 .qr-none { font-family: 'DM Mono', monospace; font-size: 10px; color: #ccc; padding: 20px 0; }
+
+/* ── NP Contact button ── */
+.np-btn {
+  margin-top: 10px; width: 100%; padding: 8px; border-radius: 8px;
+  border: 1.5px solid #e0deda; background: #fff;
+  font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500;
+  color: #444; cursor: pointer; transition: all 0.15s; display: flex;
+  align-items: center; justify-content: center; gap: 6px;
+}
+.np-btn:hover { border-color: #2d6a4f; color: #2d6a4f; background: #f0f7f4; }
+
+.btn-hide { margin-top: 8px; width: 100%; padding: 8px; border-radius: 8px; border: 1.5px solid #e0deda; background: #fff; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; color: #888; cursor: pointer; transition: all 0.15s; }
+.btn-hide:hover { border-color: #b35a0a; color: #b35a0a; }
+
+.status-msg { font-family: 'DM Mono', monospace; font-size: 11px; color: #aaa; text-align: center; padding: 8px 0; }
+.status-msg.error { color: #b35a0a; }
+
+/* ── QR Overlay ── */
 #qrOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.88); z-index: 9999; align-items: center; justify-content: center; flex-direction: column; gap: 16px; }
 #qrOverlay.visible { display: flex; }
 #qrOverlay img { max-width: 88vw; max-height: 78vh; border-radius: 12px; background: #fff; padding: 14px; }
 #qrOverlay .close-qr { color: #fff; font-family: 'DM Mono', monospace; font-size: 13px; cursor: pointer; padding: 8px 24px; border-radius: 8px; border: 1.5px solid rgba(255,255,255,0.4); background: rgba(255,255,255,0.1); }
 #qrOverlay .close-qr:hover { background: rgba(255,255,255,0.2); }
-.btn-hide { margin-top: 12px; width: 100%; padding: 8px; border-radius: 8px; border: 1.5px solid #e0deda; background: #fff; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; color: #888; cursor: pointer; transition: all 0.15s; }
-.btn-hide:hover { border-color: #b35a0a; color: #b35a0a; }
-.status-msg { font-family: 'DM Mono', monospace; font-size: 11px; color: #aaa; text-align: center; padding: 8px 0; }
-.status-msg.error { color: #b35a0a; }
+
+/* ── NP Contact Modal ── */
+#npModal {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.6); z-index: 9998; align-items: center; justify-content: center;
+}
+#npModal.visible { display: flex; }
+.np-modal-box {
+  background: #fff; border-radius: 14px; padding: 24px; width: 90%; max-width: 420px;
+  max-height: 80vh; overflow-y: auto;
+}
+.np-modal-title {
+  font-size: 14px; font-weight: 600; color: #111; margin-bottom: 16px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.np-modal-close {
+  background: none; border: none; font-size: 18px; cursor: pointer; color: #888; line-height: 1;
+}
+.np-modal-close:hover { color: #111; }
+.np-card {
+  background: #f8f7f5; border: 1px solid #e0deda; border-radius: 8px;
+  padding: 12px 14px; margin-bottom: 10px;
+}
+.np-card:last-child { margin-bottom: 0; }
+.np-name { font-size: 13px; font-weight: 600; color: #111; margin-bottom: 6px; }
+.np-row { font-family: 'DM Mono', monospace; font-size: 11px; color: #555; margin-bottom: 3px; display: flex; gap: 8px; }
+.np-row span:first-child { color: #aaa; min-width: 60px; }
+.np-empty { font-family: 'DM Mono', monospace; font-size: 12px; color: #aaa; text-align: center; padding: 16px 0; }
 </style>
 </head>
 <body>
+
 <div class="card">
   <div class="card-title">🔐 EMR Access Lookup</div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:4px;">
@@ -64,45 +123,55 @@ body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; min-height: 100v
     </div>
   </div>
   <div class="status-msg" id="statusMsg"></div>
+
   <div id="detailsPanel">
     <div class="timer-wrap">
       <div class="timer-bar-wrap"><div class="timer-bar" id="timerBar"></div></div>
       <div class="timer-label" id="timerLabel">Hiding in 30s</div>
     </div>
+
     <div class="details-layout">
       <div class="fields-grid" id="fieldsGrid"></div>
       <div class="qr-panel">
         <div class="detail-label">QR Code</div>
         <div id="qrContent"><div class="qr-none">No QR</div></div>
+        <button class="np-btn" onclick="openNPModal()">📋 NP Contact Details</button>
       </div>
     </div>
+
     <button class="btn-hide" onclick="clearDetails()">✕ Hide Details</button>
   </div>
 </div>
+
+<!-- QR Overlay -->
 <div id="qrOverlay">
   <div style="color:rgba(255,255,255,0.6);font-family:'DM Mono',monospace;font-size:11px;">Tap image to close</div>
   <img id="qrOverlayImg" src="" alt="QR Code" onclick="closeQR()" />
   <button class="close-qr" onclick="closeQR()">✕ Close</button>
 </div>
+
+<!-- NP Contact Modal -->
+<div id="npModal">
+  <div class="np-modal-box">
+    <div class="np-modal-title">
+      <span>📋 Nurse Practitioner Contacts</span>
+      <button class="np-modal-close" onclick="closeNPModal()">✕</button>
+    </div>
+    <div id="npList"><div class="np-empty">Loading…</div></div>
+  </div>
+</div>
+
 <script>
   const TIMEOUT_SEC = 30;
-  let emrData = [], timerInterval = null, secondsLeft = TIMEOUT_SEC;
+  let emrData = [], npData = [], timerInterval = null, secondsLeft = TIMEOUT_SEC;
 
   grist.ready({ requiredAccess: 'full' });
 
-  function formatEHR(val) {
-    if (!val || val === '—') return '—';
-    const md = val.match(/^\[(.+?)\]\((https?:\/\/.+?)\)$/);
-    if (md) return '<a href="' + md[2] + '" target="_blank">' + md[1] + '</a>';
-    const url = val.match(/^(https?:\/\/\S+)$/);
-    if (url) return '<a href="' + url[1] + '" target="_blank">' + url[1] + '</a>';
-    return val;
-  }
-
   async function init() {
-    await loadData();
+    await Promise.all([loadData(), loadNPData()]);
   }
 
+  // ── Load EMR data ─────────────────────────────────────────────
   async function loadData() {
     setStatus('Loading…');
     try {
@@ -119,6 +188,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; min-height: 100v
           username:      emr.Username?.[i]            || '—',
           password:      emr.Password?.[i]            || '—',
           ehrSystem:     emr.EHR_System?.[i]          || '—',
+          accessType:    emr.Access_Type?.[i]         || '—',
           primaryBackup: emr.Primary_Backup?.[i]      || '—',
           billingAccess: emr.Billing_Access_Type?.[i] || '—',
           notes:         emr.Notes?.[i]               || '—',
@@ -130,6 +200,35 @@ body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; min-height: 100v
     } catch(e) {
       setStatus('Error: ' + e.message, true);
     }
+  }
+
+  // ── Load NP contact data from Employee table ──────────────────
+  async function loadNPData() {
+    try {
+      const emp = await grist.docApi.fetchTable('Employee');
+      npData = [];
+      for (let i = 0; i < emp.id.length; i++) {
+        const jobTitle = emp.Job_Title?.[i] || '';
+        if (jobTitle === 'Nurse Practitioner') {
+          npData.push({
+            name:  emp.Employee_Name?.[i] || '—',
+            email: emp.Email?.[i]         || '—',
+            phone: emp.Phone?.[i]         || '—',
+          });
+        }
+      }
+    } catch(e) {
+      console.warn('Could not load NP data:', e);
+    }
+  }
+
+  function formatEHR(val) {
+    if (!val || val === '—') return '—';
+    const md = val.match(/^\[(.+?)\]\((https?:\/\/.+?)\)$/);
+    if (md) return '<a href="' + md[2] + '" target="_blank">' + md[1] + '</a>';
+    const url = val.match(/^(https?:\/\/\S+)$/);
+    if (url) return '<a href="' + url[1] + '" target="_blank">' + url[1] + '</a>';
+    return val;
   }
 
   function buildPractitionerDropdown() {
@@ -168,24 +267,57 @@ body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; min-height: 100v
   function showDetails(row) {
     const grid = document.getElementById('fieldsGrid');
     grid.innerHTML = '';
-    [
-      { label: 'Username',       value: row.username,             span: 1, html: false },
-      { label: 'EHR System',     value: formatEHR(row.ehrSystem), span: 1, html: true  },
-      { label: 'Primary/Backup', value: row.primaryBackup,        span: 1, html: false },
-      { label: 'Billing Access', value: row.billingAccess,        span: 1, html: false },
-      { label: 'Password',       value: row.password,             span: 1, html: false },
-      { label: 'Notes',          value: row.notes,                span: 3, html: false },
-    ].forEach(f => {
+
+    const fields = [
+      { label: 'Username',       value: row.username,             span: 1, html: false, copy: false },
+      { label: 'EHR System',     value: formatEHR(row.ehrSystem), span: 1, html: true,  copy: false },
+      { label: 'Primary/Backup', value: row.primaryBackup,        span: 1, html: false, copy: false },
+      { label: 'Access Type',    value: row.accessType,           span: 1, html: false, copy: false },
+      { label: 'Password',       value: row.password,             span: 1, html: false, copy: true  },
+      { label: 'Billing Access', value: row.billingAccess,        span: 1, html: false, copy: false },
+      { label: 'Notes',          value: row.notes,                span: 2, html: false, copy: false },
+    ];
+
+    fields.forEach(f => {
       const div = document.createElement('div');
       div.className = 'detail-item';
       if (f.span > 1) div.style.gridColumn = 'span ' + f.span;
-      const valueDiv = document.createElement('div');
-      valueDiv.className = 'detail-value';
-      if (f.html) { valueDiv.innerHTML = f.value; } else { valueDiv.textContent = f.value; }
-      div.innerHTML = '<div class="detail-label">' + f.label + '</div>';
-      div.appendChild(valueDiv);
+
+      const labelDiv = document.createElement('div');
+      labelDiv.className = 'detail-label';
+      labelDiv.textContent = f.label;
+      div.appendChild(labelDiv);
+
+      if (f.copy) {
+        const wrap = document.createElement('div');
+        wrap.className = 'copy-wrap';
+        const valueDiv = document.createElement('div');
+        valueDiv.className = 'detail-value';
+        valueDiv.textContent = f.value;
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'copy-btn';
+        copyBtn.textContent = '⎘ Copy';
+        copyBtn.onclick = () => {
+          navigator.clipboard.writeText(f.value).then(() => {
+            copyBtn.textContent = '✓ Copied';
+            copyBtn.classList.add('copied');
+            setTimeout(() => { copyBtn.textContent = '⎘ Copy'; copyBtn.classList.remove('copied'); }, 2000);
+          });
+        };
+        wrap.appendChild(valueDiv);
+        wrap.appendChild(copyBtn);
+        div.appendChild(wrap);
+      } else {
+        const valueDiv = document.createElement('div');
+        valueDiv.className = 'detail-value';
+        if (f.html) { valueDiv.innerHTML = f.value; } else { valueDiv.textContent = f.value; }
+        div.appendChild(valueDiv);
+      }
+
       grid.appendChild(div);
     });
+
+    // QR
     const qrContent = document.getElementById('qrContent');
     const qrVal = row.qrCode || '';
     const isValidUrl = qrVal && qrVal !== '—' && isNaN(Number(qrVal));
@@ -199,10 +331,32 @@ body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; min-height: 100v
     } else {
       qrContent.innerHTML = '<div class="qr-none">No QR</div>';
     }
+
     document.getElementById('detailsPanel').classList.add('visible');
   }
 
-  // ── Log access — let Grist trigger formula fill User_Name and User_Email ──
+  // ── NP Contact Modal ──────────────────────────────────────────
+  function openNPModal() {
+    const list = document.getElementById('npList');
+    if (npData.length === 0) {
+      list.innerHTML = '<div class="np-empty">No Nurse Practitioner contacts found.</div>';
+    } else {
+      list.innerHTML = npData.map(np => `
+        <div class="np-card">
+          <div class="np-name">${np.name}</div>
+          <div class="np-row"><span>Email</span><span>${np.email}</span></div>
+          <div class="np-row"><span>Phone</span><span>${np.phone}</span></div>
+        </div>
+      `).join('');
+    }
+    document.getElementById('npModal').classList.add('visible');
+  }
+
+  function closeNPModal() {
+    document.getElementById('npModal').classList.remove('visible');
+  }
+
+  // ── Log access ────────────────────────────────────────────────
   async function logAccess(row) {
     try {
       const now = Math.floor(Date.now() / 1000);
@@ -217,6 +371,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; min-height: 100v
     } catch(e) { console.warn('Log write failed:', e); }
   }
 
+  // ── Timer ─────────────────────────────────────────────────────
   function startTimer() {
     secondsLeft = TIMEOUT_SEC; clearInterval(timerInterval); updateTimerUI();
     timerInterval = setInterval(() => { secondsLeft--; updateTimerUI(); if (secondsLeft <= 0) { clearInterval(timerInterval); clearDetails(); } }, 1000);
