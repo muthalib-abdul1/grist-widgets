@@ -327,7 +327,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; min-height: 100v
     document.getElementById('npModal').classList.remove('visible');
   }
 
-  async function logAccess(row) {
+async function logAccess(row) {
     try {
       const now = Math.floor(Date.now() / 1000);
       await grist.docApi.applyUserActions([
@@ -335,12 +335,13 @@ body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; min-height: 100v
           Timestamp:    now,
           Practitioner: row.practName,
           Facility:     row.facName,
-          Row_ID:       row.id
+          Row_ID:       row.id,
+          User_Name:    currentUser.name,   // ← add this
+          User_Email:   currentUser.email   // ← add this
         }]
       ]);
     } catch(e) { console.warn('Log write failed:', e); }
   }
-
   function startTimer() {
     secondsLeft = TIMEOUT_SEC; clearInterval(timerInterval); updateTimerUI();
     timerInterval = setInterval(() => { secondsLeft--; updateTimerUI(); if (secondsLeft <= 0) { clearInterval(timerInterval); clearDetails(); } }, 1000);
