@@ -131,27 +131,13 @@ body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; min-height: 100v
 <script>
   const TIMEOUT_SEC = 30;
   let emrData = [], npData = [], timerInterval = null, secondsLeft = TIMEOUT_SEC;
-  let currentUser = { name: 'Unknown', email: 'Unknown' };
 
   grist.ready({ requiredAccess: 'full' });
 
-  async function initUser() {
-    try {
-      const u = await grist.getUser();
-      if (u) {
-        const name  = u.name  || u.Name  || u.fullName  || '';
-        const email = u.email || u.Email || u.loginEmail || '';
-        currentUser = { name: name || email || 'Unknown', email: email || 'Unknown' };
-      }
-    } catch(e) {}
-  }
-
   async function start() {
-    await initUser();
     await Promise.all([loadData(), loadNPData()]);
   }
 
-  // ── Load EMR data ─────────────────────────────────────────────
   async function loadData() {
     setStatus('Loading…');
     try {
@@ -182,7 +168,6 @@ body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; min-height: 100v
     }
   }
 
-  // ── Load NP contacts from local NP_Contacts table ─────────────
   async function loadNPData() {
     try {
       const np = await grist.docApi.fetchTable('NP_Contacts');
@@ -305,7 +290,6 @@ body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; min-height: 100v
     document.getElementById('detailsPanel').classList.add('visible');
   }
 
-  // ── NP Contact Modal — filters by selected practitioner ───────
   function openNPModal() {
     const list = document.getElementById('npList');
     const selectedPract = document.getElementById('practSelect').value;
@@ -327,7 +311,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; min-height: 100v
     document.getElementById('npModal').classList.remove('visible');
   }
 
-async function logAccess(row) {
+  async function logAccess(row) {
     try {
       const now = Math.floor(Date.now() / 1000);
       await grist.docApi.applyUserActions([
@@ -335,13 +319,14 @@ async function logAccess(row) {
           Timestamp:    now,
           Practitioner: row.practName,
           Facility:     row.facName,
-          Row_ID:       row.id,
-          User_Name:    currentUser.name,   // ← add this
-          User_Email:   currentUser.email   // ← add this
+          Row_ID:       row.id
+          // User_Name and User_Email are NOT sent here —
+          // Grist fills them automatically via _default_User_Name / _default_User_Email
         }]
       ]);
     } catch(e) { console.warn('Log write failed:', e); }
   }
+
   function startTimer() {
     secondsLeft = TIMEOUT_SEC; clearInterval(timerInterval); updateTimerUI();
     timerInterval = setInterval(() => { secondsLeft--; updateTimerUI(); if (secondsLeft <= 0) { clearInterval(timerInterval); clearDetails(); } }, 1000);
