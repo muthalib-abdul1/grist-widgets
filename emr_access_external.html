@@ -327,7 +327,6 @@ body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; min-height: 100v
     document.getElementById('npModal').classList.remove('visible');
   }
 
-  // ── Log access ────────────────────────────────────────────────
   async function logAccess(row) {
     try {
       const now = Math.floor(Date.now() / 1000);
@@ -336,9 +335,7 @@ body { font-family: 'DM Sans', sans-serif; background: #f1f0ed; min-height: 100v
           Timestamp:    now,
           Practitioner: row.practName,
           Facility:     row.facName,
-          Row_ID:       row.id,
-          User_Name:    currentUser.name,
-          User_Email:   currentUser.email
+          Row_ID:       row.id
         }]
       ]);
     } catch(e) { console.warn('Log write failed:', e); }
