@@ -371,12 +371,12 @@ body {
 
         if (isActive) {
           actions.push(['AddRecord', 'Week_List', null, {
-            Week:             weekId,
+            Week:              weekId,
             Practitioner_Name: covRecords.Practitioner_Name[i],
-            Facility_Name:    covRecords.id[i],
-            Coverage_Type:    ['L', covRecords.Coverage_Type[i]],
+            Facility_Name:     covRecords.Facility_Name[i],   // ✅ FIXED: use Facility table ref, not coverage row id
+            Coverage_Type:     ['L', covRecords.Coverage_Type[i]],
             Rounding_Status:   'Expected to Round',
-            Audit_Status:     'Not Initiated'
+            Audit_Status:      'Not Initiated'
           }]);
           created++;
         }
