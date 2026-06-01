@@ -351,6 +351,11 @@ body {
       const covRecords = await grist.docApi.fetchTable('Weekly_Coverage_Schedule');
       addLog(`Found ${covRecords.id.length} coverage records`, 'info');
 
+      // Diagnostic: log first 5 rows to verify ID alignment
+      for (let d = 0; d < Math.min(5, covRecords.id.length); d++) {
+        addLog(`Row ${covRecords.id[d]}: pId=${covRecords.Practitioner_Name[d]}, fId=${covRecords.Facility_Name[d]}`, 'info');
+      }
+
       // Build a map of Facility table row IDs to confirm references are valid
       addLog('Fetching Facility table for reference validation…', 'info');
       const facilityTable = await grist.docApi.fetchTable('Facility');
@@ -409,7 +414,6 @@ body {
           Practitioner_Name:  practitionerId,  // Employee table row ID (Reference)
           Facility_Name:      facilityId,      // Facility table row ID (Reference)
           Coverage_Type:      ['L', covRecords.Coverage_Type[i]],
-          Rounding_Status:    'Expected to Round',
           Audit_Status:       'Not Initiated'
         }]);
         created++;
