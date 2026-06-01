@@ -351,11 +351,24 @@ body {
       const covRecords = await grist.docApi.fetchTable('Weekly_Coverage_Schedule');
       addLog(`Found ${covRecords.id.length} coverage records`, 'info');
 
+      // Build a map of Facility table row IDs to confirm references are valid
+      addLog('Fetching Facility table for reference validation…', 'info');
+      const facilityTable = await grist.docApi.fetchTable('Facility');
+      const validFacilityIds = new Set(facilityTable.id);
+      addLog(`✓ ${validFacilityIds.size} facilities loaded`, 'success');
+
+      // Build a map of Practitioner table row IDs to confirm references are valid
+      addLog('Fetching Employee table for reference validation…', 'info');
+      const employeeTable = await grist.docApi.fetchTable('Employee');
+      const validEmployeeIds = new Set(employeeTable.id);
+      addLog(`✓ ${validEmployeeIds.size} practitioners loaded`, 'success');
+
       const weekStartDate = new Date(weekDate + 'T00:00:00');
       const weekEndDate = new Date(weekStartDate);
       weekEndDate.setDate(weekStartDate.getDate() + 6);
 
       let created = 0;
+      let skipped = 0;
       const actions = [];
 
       for (let i = 0; i < covRecords.id.length; i++) {
@@ -369,17 +382,42 @@ body {
           start <= weekEndDate &&
           (!end || end >= weekStartDate);
 
-        if (isActive) {
-          actions.push(['AddRecord', 'Week_List', null, {
-            Week:              weekId,
-            Practitioner_Name: covRecords.Practitioner_Name[i],
-            Facility_Name:     covRecords.Facility_Name[i],   // ✅ FIXED: use Facility table ref, not coverage row id
-            Coverage_Type:     ['L', covRecords.Coverage_Type[i]],
-            Rounding_Status:   'Expected to Round',
-            Audit_Status:      'Not Initiated'
-          }]);
-          created++;
+        if (!isActive) continue;
+
+        const practitionerId = covRecords.Practitioner_Name[i];
+        const facilityId     = covRecords.Facility_Name[i];
+
+        // Skip rows with missing or invalid references — these are the red-highlighted rows
+        if (!practitionerId || !facilityId) {
+          addLog(`⚠ Row ${covRecords.id[i]}: missing practitioner or facility — skipped`, 'error');
+          skipped++;
+          continue;
         }
+        if (!validFacilityIds.has(facilityId)) {
+          addLog(`⚠ Row ${covRecords.id[i]}: facility ID ${facilityId} not found in Facility table — skipped`, 'error');
+          skipped++;
+          continue;
+        }
+        if (!validEmployeeIds.has(practitionerId)) {
+          addLog(`⚠ Row ${covRecords.id[i]}: practitioner ID ${practitionerId} not found in Employee table — skipped`, 'error');
+          skipped++;
+          continue;
+        }
+
+        actions.push(['AddRecord', 'Week_List', null, {
+          Week:               weekId,
+          Practitioner_Name:  practitionerId,  // Employee table row ID (Reference)
+          Facility_Name:      facilityId,      // Facility table row ID (Reference)
+          Rounding_Frequency: covRecords.Rounding_Frequency[i],
+          Coverage_Type:      ['L', covRecords.Coverage_Type[i]],
+          Rounding_Status:    'Expected to Round',
+          Audit_Status:       'Not Initiated'
+        }]);
+        created++;
+      }
+
+      if (skipped > 0) {
+        addLog(`⚠ ${skipped} rows skipped due to invalid references — fix red-highlighted rows in Weekly Coverage Schedule`, 'error');
       }
 
       if (actions.length === 0) {
