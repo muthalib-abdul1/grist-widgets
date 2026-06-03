@@ -75,7 +75,7 @@ body {
   padding: 2px 7px; border-radius: 4px; font-weight: 600;
   background: #d4edda; color: #1a7a40;
 }
-.scope-tag.empty { background: #fff3cd; color: #856404; }
+.scope-tag.empty   { background: #fff3cd; color: #856404; }
 .scope-tag.waiting { background: #e8f0fe; color: #1a56db; }
 
 /* ── Pre-flight checklist ── */
@@ -93,51 +93,35 @@ body {
   font-family: 'DM Mono', monospace; margin-bottom: 12px;
   display: flex; align-items: center; gap: 6px;
 }
-
 .checklist-header::before {
-  content: '';
-  display: inline-block;
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: #f0a500;
+  content: ''; display: inline-block;
+  width: 6px; height: 6px; border-radius: 50%; background: #f0a500;
 }
 
 .checklist-item {
-  display: flex;
-  gap: 10px;
-  padding: 8px 0;
-  border-bottom: 1px solid #f0ede8;
-  align-items: flex-start;
+  display: flex; gap: 10px; padding: 8px 0;
+  border-bottom: 1px solid #f0ede8; align-items: flex-start;
 }
-.checklist-item:last-child { border-bottom: none; padding-bottom: 0; }
+.checklist-item:last-child  { border-bottom: none; padding-bottom: 0; }
 .checklist-item:first-child { padding-top: 0; }
 
 .check-num {
   font-size: 10px; font-family: 'DM Mono', monospace;
-  color: #111; min-width: 16px; margin-top: 1px;
-  font-weight: 700;
+  color: #111; min-width: 16px; margin-top: 1px; font-weight: 700;
 }
-
-.check-text {
-  font-size: 12px; color: #555; line-height: 1.5;
-}
+.check-text { font-size: 12px; color: #555; line-height: 1.5; }
 .check-text strong { color: #111; font-weight: 700; }
 
 .check-text .tag {
-  display: inline-block;
-  background: #f0a500; color: #fff;
-  border: 1px solid #d4920a; border-radius: 4px;
-  padding: 0px 5px; font-size: 10px;
-  font-family: 'DM Mono', monospace; font-weight: 600;
+  display: inline-block; background: #f0a500; color: #fff;
+  border: 1px solid #d4920a; border-radius: 4px; padding: 0px 5px;
+  font-size: 10px; font-family: 'DM Mono', monospace; font-weight: 600;
   vertical-align: middle; margin: 0 1px;
 }
-
 .check-text .tag-red {
-  display: inline-block;
-  background: #c0392b; color: #fff;
-  border: 1px solid #a93226; border-radius: 4px;
-  padding: 0px 5px; font-size: 10px;
-  font-family: 'DM Mono', monospace; font-weight: 500;
+  display: inline-block; background: #c0392b; color: #fff;
+  border: 1px solid #a93226; border-radius: 4px; padding: 0px 5px;
+  font-size: 10px; font-family: 'DM Mono', monospace; font-weight: 500;
   vertical-align: middle; margin: 0 1px;
 }
 
@@ -177,8 +161,8 @@ body {
   <div class="title">📅 Week Generator</div>
   <div class="subtitle">Auto-populate Week_List from Coverage</div>
 
-  <!-- Scope badge: shows which CC is selected + how many rows are loaded -->
-  <div class="scope-badge waiting" id="scopeBadge">
+  <!-- Scope badge -->
+  <div class="scope-badge empty" id="scopeBadge">
     <div class="dot"></div>
     <div class="info">
       <div class="label" id="scopeLabel">Waiting for selection…</div>
@@ -204,7 +188,6 @@ body {
     <div class="preview" id="preview">Fill in week number and date above</div>
   </div>
 
-  <!-- Pre-flight checklist -->
   <div class="checklist-section">
     <div class="checklist-header">Before You Generate</div>
 
@@ -212,37 +195,30 @@ body {
       <span class="check-num">01</span>
       <span class="check-text">Ensure no row in <strong>Practitioner Name</strong> or <strong>Facility Name</strong> columns are both highlighted <span class="tag">orange</span> — this indicates a duplicate entry having same facility and practitioner name and needs to be deleted.</span>
     </div>
-
     <div class="checklist-item">
       <span class="check-num">02</span>
       <span class="check-text">If a cell within the <strong>Facility Name</strong> column is highlighted <span class="tag">orange</span>, the facility may be intentionally covered by a backup practitioner. Verify before proceeding.</span>
     </div>
-
     <div class="checklist-item">
       <span class="check-num">03</span>
       <span class="check-text">Confirm all <strong>Backup</strong> coverage types have an <strong>End Date</strong> set.</span>
     </div>
-
     <div class="checklist-item">
       <span class="check-num">04</span>
       <span class="check-text">Review the <strong>Coverage Audit</strong> widget for facilities missing coverage and update the schedule as needed. If a correction has been made to the schedule, please refresh the page to update the coverage audit widget.</span>
     </div>
-
     <div class="checklist-item">
       <span class="check-num">05</span>
       <span class="check-text">Ensure <strong>Weekly Coverage Schedule</strong> does not have blank cells in the <strong>Practitioner Name</strong> and <strong>Facility Name</strong> columns. A blank row at the end of the table is normal.</span>
     </div>
-
     <div class="checklist-item">
       <span class="check-num">06</span>
       <span class="check-text">Please make sure rows that are highlighted <span class="tag-red">red</span> are addressed appropriately. A red highlight means the cell values in the <strong>Practitioner Name</strong> and <strong>Facility Name</strong> columns are not correctly linked to the master table. This could lead to discrepancy in numbers and improper reporting. If you come across one, double click on the <strong>Practitioner Name</strong> and/or <strong>Facility Name</strong> cell values and select the value from the dropdown.</span>
     </div>
-
     <div class="checklist-item">
       <span class="check-num">07</span>
       <span class="check-text">If the values do not show up, please reach out to <strong>admin</strong>.</span>
     </div>
-
     <div class="checklist-item">
       <span class="check-num">08</span>
       <span class="check-text">Make sure the week number and start of the week is correct. Please review the details <a href="https://www.timeanddate.com/calendar/?year=2026&country=1&wno=1" target="_blank" style="color:#2d6a4f;font-weight:600;">here</a>.</span>
@@ -256,9 +232,10 @@ body {
 
 <script>
   // ── State ─────────────────────────────────────────────────────────────────
-  // currentRecords holds whatever grist.onRecords pushes (already filtered by
-  // the CC selector widget via Grist's native "select by" linking).
-  let currentRecords = [];
+  // visibleRowIds: the row IDs currently shown in the linked Weekly Coverage
+  // Schedule (driven by whichever CC is selected). We get these from onRecords
+  // and use them to filter the fetchTable result (which has raw ref IDs).
+  let visibleRowIds = new Set();
 
   // ── Init ──────────────────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
@@ -277,22 +254,20 @@ body {
 
   grist.ready({ requiredAccess: 'full' });
 
-  // ── Receive filtered records from Grist linking ───────────────────────────
-  // This fires whenever the CC selector cursor changes, giving us only the
-  // rows for the selected care coordinator's NPs.
-  grist.onRecords(function(records, mappings) {
-    currentRecords = records || [];
+  // onRecords fires whenever the linked table's visible rows change.
+  // We only need the row IDs — fetchTable gives us the real reference values.
+  grist.onRecords(function(records) {
+    visibleRowIds = new Set((records || []).map(r => r.id));
     updateScopeBadge();
   });
 
   function updateScopeBadge() {
-    const badge  = document.getElementById('scopeBadge');
-    const label  = document.getElementById('scopeLabel');
-    const count  = document.getElementById('scopeCount');
-    const tag    = document.getElementById('scopeTag');
-    const btn    = document.getElementById('generateBtn');
-
-    const n = currentRecords.length;
+    const badge = document.getElementById('scopeBadge');
+    const label = document.getElementById('scopeLabel');
+    const count = document.getElementById('scopeCount');
+    const tag   = document.getElementById('scopeTag');
+    const btn   = document.getElementById('generateBtn');
+    const n = visibleRowIds.size;
 
     if (n === 0) {
       badge.className = 'scope-badge empty';
@@ -302,8 +277,6 @@ body {
       tag.className = 'scope-tag empty';
       btn.disabled = true;
     } else {
-      // Try to derive CC name from the first record's practitioner display value
-      // (We show row count; the CC name comes from whichever row is selected above)
       badge.className = 'scope-badge active';
       label.textContent = 'Coverage rows loaded';
       count.textContent = `${n} row${n !== 1 ? 's' : ''} in current view`;
@@ -318,7 +291,6 @@ body {
     const num  = document.getElementById('weekNum').value.trim();
     const date = document.getElementById('weekDate').value.trim();
     const preview = document.getElementById('preview');
-
     if (!num || !date) { preview.textContent = 'Fill in week number and date above'; return; }
     const d = new Date(date + 'T00:00:00');
     if (isNaN(d.getTime())) { preview.textContent = 'Invalid date'; return; }
@@ -348,58 +320,73 @@ body {
     const weekDate = document.getElementById('weekDate').value.trim();
 
     if (!weekNum || !weekDate) { addLog('⚠ Please fill in week number and date', 'error'); return; }
-    if (currentRecords.length === 0) { addLog('⚠ No rows loaded — select a Care Coordinator first', 'error'); return; }
+    if (visibleRowIds.size === 0) { addLog('⚠ No rows loaded — select a Care Coordinator first', 'error'); return; }
 
     clearLog();
-    addLog(`Generating for ${currentRecords.length} visible coverage rows…`, 'info');
+    addLog(`Processing ${visibleRowIds.size} visible coverage rows…`, 'info');
 
-    // ── 1. Duplicate check within visible rows ─────────────────────────────
-    addLog('Checking for duplicates…', 'info');
-    const seen = new Map();
-    const duplicates = new Set();
-    for (const r of currentRecords) {
-      const pId = r.Practitioner_Name;
-      const fId = r.Facility_Name;
-      if (!pId || !fId) continue;
-      const key = `${pId}__${fId}`;
-      if (seen.has(key)) {
-        duplicates.add(`${r.Practitioner_Name_Value || pId} @ ${r.Facility_Name_Value || fId}`);
-      } else {
-        seen.set(key, true);
-      }
-    }
-    if (duplicates.size > 0) {
-      addLog('🚫 Duplicates found — fix before generating:', 'error');
-      duplicates.forEach(d => addLog(`  ↳ ${d}`, 'error'));
-      return;
-    }
-    addLog('✓ No duplicates found', 'success');
-
-    const weekLabel = `Week ${weekNum} - ${formatDate(weekDate)}`;
     const btn = document.getElementById('generateBtn');
     btn.disabled = true;
     btn.textContent = 'Working…';
 
     try {
-      // ── 2. Validate references via live tables ─────────────────────────────
-      addLog('Fetching Facility table for validation…', 'info');
-      const facilityTable  = await grist.docApi.fetchTable('Facility');
-      const validFacilityIds = new Set(facilityTable.id);
+      // ── 1. Fetch Weekly_Coverage_Schedule via fetchTable ───────────────────
+      // fetchTable always returns raw row IDs for Reference columns — unlike
+      // onRecords which returns display values. We then filter to only the
+      // rows that are currently visible (matching visibleRowIds).
+      addLog('Fetching Weekly Coverage Schedule (raw)…', 'info');
+      const covTable = await grist.docApi.fetchTable('Weekly_Coverage_Schedule');
 
-      addLog('Fetching Employee table for validation…', 'info');
-      const employeeTable  = await grist.docApi.fetchTable('Employee');
-      const validEmployeeIds = new Set(employeeTable.id);
+      // Build filtered list: only rows whose id is in visibleRowIds
+      const covRows = [];
+      for (let i = 0; i < covTable.id.length; i++) {
+        if (visibleRowIds.has(covTable.id[i])) {
+          covRows.push({
+            id:               covTable.id[i],
+            Practitioner_Name: covTable.Practitioner_Name[i],  // raw Employee row ID
+            Facility_Name:     covTable.Facility_Name[i],      // raw Facility row ID
+            Coverage_Type:     covTable.Coverage_Type[i],
+            Start_Date:        covTable.Start_Date[i],
+            End_Date:          covTable.End_Date[i],
+          });
+        }
+      }
+      addLog(`✓ ${covRows.length} rows matched to current view`, 'success');
 
+      // ── 2. Duplicate check on filtered rows ───────────────────────────────
+      addLog('Checking for duplicates…', 'info');
+      const seen = new Map();
+      const duplicates = new Set();
+      for (const r of covRows) {
+        const key = `${r.Practitioner_Name}__${r.Facility_Name}`;
+        if (seen.has(key)) duplicates.add(key);
+        else seen.set(key, true);
+      }
+      if (duplicates.size > 0) {
+        addLog('🚫 Duplicates found — fix before generating:', 'error');
+        duplicates.forEach(d => addLog(`  ↳ ${d}`, 'error'));
+        return;
+      }
+      addLog('✓ No duplicates found', 'success');
+
+      // ── 3. Validate reference tables ──────────────────────────────────────
+      addLog('Fetching Facility and Employee tables for validation…', 'info');
+      const [facilityTable, employeeTable] = await Promise.all([
+        grist.docApi.fetchTable('Facility'),
+        grist.docApi.fetchTable('Employee'),
+      ]);
+      const validFacilityIds  = new Set(facilityTable.id);
+      const validEmployeeIds  = new Set(employeeTable.id);
       addLog(`✓ ${validFacilityIds.size} facilities, ${validEmployeeIds.size} employees loaded`, 'success');
 
-      // ── 3. Find or create Weeks_Table row (shared across all CCs) ──────────
+      // ── 4. Find or create shared Weeks_Table row ──────────────────────────
+      const weekLabel = `Week ${weekNum} - ${formatDate(weekDate)}`;
       addLog(`Checking Weeks_Table for "${weekLabel}"…`, 'info');
       const weeksTable = await grist.docApi.fetchTable('Weeks_Table');
       let weekId = null;
       for (let i = 0; i < weeksTable.id.length; i++) {
         if (weeksTable.Week?.[i] === weekLabel) { weekId = weeksTable.id[i]; break; }
       }
-
       if (weekId) {
         addLog(`✓ Reusing existing Weeks_Table row (id: ${weekId})`, 'success');
       } else {
@@ -414,7 +401,7 @@ body {
         addLog(`✓ Week created (id: ${weekId})`, 'success');
       }
 
-      // ── 4. Check already-existing Week_List rows for this week ────────────
+      // ── 5. Check already-existing Week_List rows for idempotency ─────────
       addLog('Checking for already-generated rows…', 'info');
       const existingList = await grist.docApi.fetchTable('Week_List');
       const existingKeys = new Set();
@@ -423,32 +410,31 @@ body {
           existingKeys.add(`${existingList.Practitioner_Name?.[i]}__${existingList.Facility_Name?.[i]}`);
         }
       }
-      addLog(`✓ ${existingKeys.size} rows already exist for this week across all groups`, 'info');
+      addLog(`✓ ${existingKeys.size} rows already exist for this week`, 'info');
 
-      // ── 5. Build date window ───────────────────────────────────────────────
+      // ── 6. Date window ────────────────────────────────────────────────────
       const weekStartDate = new Date(weekDate + 'T00:00:00');
       const weekEndDate   = new Date(weekStartDate);
       weekEndDate.setDate(weekStartDate.getDate() + 6);
 
-      // ── 6. Build actions from visible records only ─────────────────────────
+      // ── 7. Build actions ──────────────────────────────────────────────────
       let created = 0, skipped = 0, alreadyExists = 0;
       const actions = [];
 
-      for (const r of currentRecords) {
+      for (const r of covRows) {
         const practitionerId = r.Practitioner_Name;
         const facilityId     = r.Facility_Name;
 
-        // Validate references
         if (!practitionerId || !facilityId) {
           addLog(`⚠ Row ${r.id}: missing practitioner or facility — skipped`, 'error');
           skipped++; continue;
         }
         if (!validFacilityIds.has(facilityId)) {
-          addLog(`⚠ Row ${r.id}: facility ID ${facilityId} not in Facility table — skipped`, 'error');
+          addLog(`⚠ Row ${r.id}: facility ref ${facilityId} invalid — skipped`, 'error');
           skipped++; continue;
         }
         if (!validEmployeeIds.has(practitionerId)) {
-          addLog(`⚠ Row ${r.id}: practitioner ID ${practitionerId} not in Employee table — skipped`, 'error');
+          addLog(`⚠ Row ${r.id}: practitioner ref ${practitionerId} invalid — skipped`, 'error');
           skipped++; continue;
         }
 
@@ -458,7 +444,7 @@ body {
         const isActive = start && start <= weekEndDate && (!end || end >= weekStartDate);
         if (!isActive) continue;
 
-        // Idempotency: skip if already generated
+        // Idempotency
         const rowKey = `${practitionerId}__${facilityId}`;
         if (existingKeys.has(rowKey)) { alreadyExists++; continue; }
 
@@ -472,7 +458,7 @@ body {
         created++;
       }
 
-      if (alreadyExists > 0) addLog(`ℹ ${alreadyExists} rows already exist for this week — skipped`, 'info');
+      if (alreadyExists > 0) addLog(`ℹ ${alreadyExists} rows already exist — skipped`, 'info');
       if (skipped > 0)       addLog(`⚠ ${skipped} rows skipped due to invalid references`, 'error');
 
       if (actions.length === 0) {
@@ -496,7 +482,7 @@ body {
     } finally {
       btn.disabled = false;
       btn.textContent = 'Generate Weekly Tasks';
-      updateScopeBadge(); // re-enable button only if records still loaded
+      updateScopeBadge();
     }
   }
 </script>
