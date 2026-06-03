@@ -79,31 +79,9 @@ tbody td:first-child {
   padding: 0 3px; line-height: 14px;
   font-family: 'DM Mono', monospace;
 }
-.total-row td {
-  background: #f8f7f5; font-weight: 600;
-  border-top: 2px solid #e0deda; color: #111;
-}
-.total-row td:first-child { background: #f0eeea; }
 .loading {
   padding: 32px; text-align: center; color: #aaa;
   font-family: 'DM Mono', monospace; font-size: 12px;
-}
-.legend {
-  display: flex; gap: 16px; margin-bottom: 12px; flex-wrap: wrap;
-}
-.legend-item {
-  display: flex; align-items: center; gap: 5px;
-  font-size: 11px; font-family: 'DM Mono', monospace; color: #666;
-}
-.legend-dot {
-  width: 8px; height: 8px; border-radius: 2px;
-}
-.legend-dot.incomplete { background: #fff3e0; border: 1px solid #e65100; }
-.legend-dot.complete   { background: #e8f5e9; border: 1px solid #2d6a4f; }
-.legend-sup {
-  font-size: 9px; font-weight: 600; color: #2d6a4f;
-  background: #e8f5e9; border-radius: 3px;
-  padding: 0 3px; line-height: 14px;
 }
 </style>
 </head>
@@ -116,20 +94,6 @@ tbody td:first-child {
   </div>
 </div>
 
-<div class="legend">
-  <div class="legend-item">
-    <div class="legend-dot incomplete"></div>
-    Main number = Incomplete (excludes ❌ not rounded)
-  </div>
-  <div class="legend-item">
-    <div class="legend-sup">n</div>
-    Superscript = Completed
-  </div>
-  <div class="legend-item">
-    ❌ = Excluded from both counts
-  </div>
-</div>
-
 <div class="table-wrap">
   <div class="loading" id="loading">Loading data…</div>
   <table id="pivotTable" style="display:none">
@@ -139,16 +103,8 @@ tbody td:first-child {
 </div>
 
 <script>
-  // ── Constants ─────────────────────────────────────────────────────────────
-  const ROUNDING_SKIP = '❌';   // intentionally not rounded — exclude from both counts
-  const AUDIT_COMPLETE = 'Completed'; // counts as complete (superscript)
-
-  // A row is INCOMPLETE if:
-  //   Audit_Status != 'Completed'  AND  Rounding_Status != '❌'
-  // A row is COMPLETE if:
-  //   Audit_Status == 'Completed'
-  // A row is EXCLUDED if:
-  //   Rounding_Status == '❌'  (regardless of audit status)
+  const ROUNDING_SKIP  = '❌';
+  const AUDIT_COMPLETE = 'Completed';
 
   let activeCC = null;
   let cachedWL = null;
@@ -211,9 +167,7 @@ tbody td:first-child {
     } else if (wl && wl.id) {
       const ids = [];
       for (let i = 0; i < wl.id.length; i++) {
-        if (getVal(wl, 'Care_Coordinator', i) === cc) {
-          ids.push(wl.id[i]);
-        }
+        if (getVal(wl, 'Care_Coordinator', i) === cc) ids.push(wl.id[i]);
       }
       grist.setSelectedRows(ids);
     }
@@ -272,32 +226,21 @@ tbody td:first-child {
       const auditStatus    = wl.Audit_Status    ? wl.Audit_Status[i]    : null;
       const roundingStatus = wl.Rounding_Status ? wl.Rounding_Status[i] : null;
 
-      const isSkipped  = roundingStatus === ROUNDING_SKIP;
-      const isComplete = auditStatus === AUDIT_COMPLETE;
+      if (roundingStatus === ROUNDING_SKIP) continue; // excluded from both
 
-      if (isSkipped) continue; // excluded from both counts
-
-      if (isComplete) {
+      if (auditStatus === AUDIT_COMPLETE) {
         matrix[weekLabel][cc].complete++;
       } else {
         matrix[weekLabel][cc].incomplete++;
       }
     }
 
-    // Row totals (incomplete only)
-    const rowTotals = {};
+    // Row totals only (no column totals)
+    const rowTotals   = {};
     const rowComplete = {};
     weeks.forEach(([wId]) => {
       rowTotals[wId]   = coordinators.reduce((s, cc) => s + matrix[wId][cc].incomplete, 0);
-      rowComplete[wId] = coordinators.reduce((s, cc) => s + matrix[wId][cc].complete, 0);
-    });
-
-    // Col totals
-    const colTotals = {};
-    const colComplete = {};
-    coordinators.forEach(cc => {
-      colTotals[cc]   = weeks.reduce((s, [wId]) => s + matrix[wId][cc].incomplete, 0);
-      colComplete[cc] = weeks.reduce((s, [wId]) => s + matrix[wId][cc].complete, 0);
+      rowComplete[wId] = coordinators.reduce((s, cc) => s + matrix[wId][cc].complete,   0);
     });
 
     // ── Render thead ──────────────────────────────────────────────────────
@@ -310,7 +253,6 @@ tbody td:first-child {
     coordinators.forEach(cc => {
       const th = document.createElement('th');
       th.textContent = cc;
-      th.title = cc;
       hRow.appendChild(th);
     });
     const totalTh = document.createElement('th');
@@ -318,12 +260,13 @@ tbody td:first-child {
     hRow.appendChild(totalTh);
     thead.appendChild(hRow);
 
-    // ── Render tbody ──────────────────────────────────────────────────────
+    // ── Render tbody (no total row) ───────────────────────────────────────
     const tbody = document.getElementById('tbody');
     tbody.innerHTML = '';
 
     weeks.forEach(([wId, label]) => {
       const tr = document.createElement('tr');
+
       const weekTd = document.createElement('td');
       weekTd.textContent = label;
       tr.appendChild(weekTd);
@@ -353,7 +296,7 @@ tbody td:first-child {
       });
 
       // Row total
-      const rtd = document.createElement('td');
+      const rtd  = document.createElement('td');
       const wrap = document.createElement('span');
       wrap.className = 'cell-wrap';
       const rs = document.createElement('span');
@@ -371,51 +314,6 @@ tbody td:first-child {
       tr.appendChild(rtd);
       tbody.appendChild(tr);
     });
-
-    // ── Total row ──────────────────────────────────────────────────────────
-    const tRow = document.createElement('tr');
-    tRow.className = 'total-row';
-    const tlbl = document.createElement('td');
-    tlbl.textContent = 'TOTAL';
-    tRow.appendChild(tlbl);
-
-    coordinators.forEach(cc => {
-      const td = document.createElement('td');
-      const wrap = document.createElement('span');
-      wrap.className = 'cell-wrap';
-      const span = document.createElement('span');
-      span.className = 'cell-val ' + getColor(colTotals[cc]);
-      span.textContent = colTotals[cc] || '–';
-      wrap.appendChild(span);
-      if (colComplete[cc] > 0) {
-        const sup = document.createElement('span');
-        sup.className = 'cell-complete';
-        sup.textContent = colComplete[cc];
-        sup.title = colComplete[cc] + ' completed';
-        wrap.appendChild(sup);
-      }
-      td.appendChild(wrap);
-      tRow.appendChild(td);
-    });
-
-    const grand     = coordinators.reduce((s, cc) => s + colTotals[cc],   0);
-    const grandComp = coordinators.reduce((s, cc) => s + colComplete[cc], 0);
-    const gtd = document.createElement('td');
-    const gwrap = document.createElement('span');
-    gwrap.className = 'cell-wrap';
-    const gs = document.createElement('span');
-    gs.className = 'cell-val ' + getColor(grand);
-    gs.textContent = grand || '–';
-    gwrap.appendChild(gs);
-    if (grandComp > 0) {
-      const sup = document.createElement('span');
-      sup.className = 'cell-complete';
-      sup.textContent = grandComp;
-      gwrap.appendChild(sup);
-    }
-    gtd.appendChild(gwrap);
-    tRow.appendChild(gtd);
-    tbody.appendChild(tRow);
 
     document.getElementById('loading').style.display = 'none';
     document.getElementById('pivotTable').style.display = 'table';
