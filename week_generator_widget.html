@@ -50,6 +50,34 @@ body {
   color: #2d6a4f; margin-bottom: 20px; min-height: 32px;
 }
 
+/* ── Scope badge ── */
+.scope-badge {
+  display: flex; align-items: center; gap: 8px;
+  background: #f8f7f5; border: 1px solid #e0deda;
+  border-radius: 7px; padding: 8px 12px; margin-bottom: 16px;
+}
+.scope-badge .dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  background: #aaa; transition: background 0.2s;
+}
+.scope-badge.active .dot { background: #2d6a4f; }
+.scope-badge.empty  .dot { background: #e0a800; }
+.scope-badge .info { flex: 1; }
+.scope-badge .label {
+  font-size: 12px; font-weight: 600; color: #111;
+}
+.scope-badge .count {
+  font-size: 10px; font-family: 'DM Mono', monospace; color: #888;
+  margin-top: 1px;
+}
+.scope-tag {
+  font-size: 10px; font-family: 'DM Mono', monospace;
+  padding: 2px 7px; border-radius: 4px; font-weight: 600;
+  background: #d4edda; color: #1a7a40;
+}
+.scope-tag.empty { background: #fff3cd; color: #856404; }
+.scope-tag.waiting { background: #e8f0fe; color: #1a56db; }
+
 /* ── Pre-flight checklist ── */
 .checklist-section {
   border: 1px solid #e8e5e0;
@@ -93,50 +121,35 @@ body {
 .check-text {
   font-size: 12px; color: #555; line-height: 1.5;
 }
-
-.check-text strong {
-  color: #111; font-weight: 700;
-}
+.check-text strong { color: #111; font-weight: 700; }
 
 .check-text .tag {
   display: inline-block;
-  background: #f0a500;
-  color: #fff;
-  border: 1px solid #d4920a;
-  border-radius: 4px;
-  padding: 0px 5px;
-  font-size: 10px;
-  font-family: 'DM Mono', monospace;
-  font-weight: 600;
-  vertical-align: middle;
-  margin: 0 1px;
+  background: #f0a500; color: #fff;
+  border: 1px solid #d4920a; border-radius: 4px;
+  padding: 0px 5px; font-size: 10px;
+  font-family: 'DM Mono', monospace; font-weight: 600;
+  vertical-align: middle; margin: 0 1px;
 }
 
 .check-text .tag-red {
   display: inline-block;
-  background: #c0392b;
-  color: #fff;
-  border: 1px solid #a93226;
-  border-radius: 4px;
-  padding: 0px 5px;
-  font-size: 10px;
-  font-family: 'DM Mono', monospace;
-  font-weight: 500;
-  vertical-align: middle;
-  margin: 0 1px;
+  background: #c0392b; color: #fff;
+  border: 1px solid #a93226; border-radius: 4px;
+  padding: 0px 5px; font-size: 10px;
+  font-family: 'DM Mono', monospace; font-weight: 500;
+  vertical-align: middle; margin: 0 1px;
 }
-
-/* ── end checklist ── */
 
 .btn {
   width: 100%; padding: 11px;
-  background: #1a1916; color: #fff; border: none;
+  background: #1a7a40; color: #fff; border: none;
   border-radius: 8px; font-family: 'DM Sans', sans-serif;
   font-size: 14px; font-weight: 600; cursor: pointer;
   transition: background 0.15s, transform 0.1s;
 }
-.btn:hover { background: #2d6a4f; }
-.btn:active { transform: scale(0.98); }
+.btn:hover:not(:disabled) { background: #155f32; }
+.btn:active:not(:disabled) { transform: scale(0.98); }
 .btn:disabled { background: #ccc; cursor: not-allowed; transform: none; }
 
 .log {
@@ -163,6 +176,16 @@ body {
 <div class="container">
   <div class="title">📅 Week Generator</div>
   <div class="subtitle">Auto-populate Week_List from Coverage</div>
+
+  <!-- Scope badge: shows which CC is selected + how many rows are loaded -->
+  <div class="scope-badge waiting" id="scopeBadge">
+    <div class="dot"></div>
+    <div class="info">
+      <div class="label" id="scopeLabel">Waiting for selection…</div>
+      <div class="count" id="scopeCount">Select a Care Coordinator from the list above</div>
+    </div>
+    <span class="scope-tag waiting" id="scopeTag">—</span>
+  </div>
 
   <div class="section-title">Generate New Week</div>
 
@@ -224,15 +247,20 @@ body {
       <span class="check-num">08</span>
       <span class="check-text">Make sure the week number and start of the week is correct. Please review the details <a href="https://www.timeanddate.com/calendar/?year=2026&country=1&wno=1" target="_blank" style="color:#2d6a4f;font-weight:600;">here</a>.</span>
     </div>
-
   </div>
 
-  <button class="btn" id="generateBtn" onclick="generate()">Generate Week Rows</button>
+  <button class="btn" id="generateBtn" onclick="generate()" disabled>Generate Weekly Tasks</button>
 
   <div class="log" id="log"></div>
 </div>
 
 <script>
+  // ── State ─────────────────────────────────────────────────────────────────
+  // currentRecords holds whatever grist.onRecords pushes (already filtered by
+  // the CC selector widget via Grist's native "select by" linking).
+  let currentRecords = [];
+
+  // ── Init ──────────────────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
     const today = new Date();
     const day = today.getDay();
@@ -244,38 +272,63 @@ body {
     document.getElementById('weekNum').addEventListener('input', updatePreview);
     document.getElementById('weekDate').addEventListener('input', updatePreview);
     document.getElementById('weekDate').addEventListener('change', updatePreview);
-
     updatePreview();
   });
 
   grist.ready({ requiredAccess: 'full' });
 
+  // ── Receive filtered records from Grist linking ───────────────────────────
+  // This fires whenever the CC selector cursor changes, giving us only the
+  // rows for the selected care coordinator's NPs.
+  grist.onRecords(function(records, mappings) {
+    currentRecords = records || [];
+    updateScopeBadge();
+  });
+
+  function updateScopeBadge() {
+    const badge  = document.getElementById('scopeBadge');
+    const label  = document.getElementById('scopeLabel');
+    const count  = document.getElementById('scopeCount');
+    const tag    = document.getElementById('scopeTag');
+    const btn    = document.getElementById('generateBtn');
+
+    const n = currentRecords.length;
+
+    if (n === 0) {
+      badge.className = 'scope-badge empty';
+      label.textContent = 'No rows loaded';
+      count.textContent = 'Select a Care Coordinator from the list above';
+      tag.textContent = '0 rows';
+      tag.className = 'scope-tag empty';
+      btn.disabled = true;
+    } else {
+      // Try to derive CC name from the first record's practitioner display value
+      // (We show row count; the CC name comes from whichever row is selected above)
+      badge.className = 'scope-badge active';
+      label.textContent = 'Coverage rows loaded';
+      count.textContent = `${n} row${n !== 1 ? 's' : ''} in current view`;
+      tag.textContent = `${n} rows`;
+      tag.className = 'scope-tag';
+      btn.disabled = false;
+    }
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
   function updatePreview() {
     const num  = document.getElementById('weekNum').value.trim();
     const date = document.getElementById('weekDate').value.trim();
     const preview = document.getElementById('preview');
 
-    if (!num || !date) {
-      preview.textContent = 'Fill in week number and date above';
-      return;
-    }
-
+    if (!num || !date) { preview.textContent = 'Fill in week number and date above'; return; }
     const d = new Date(date + 'T00:00:00');
-    if (isNaN(d.getTime())) {
-      preview.textContent = 'Invalid date';
-      return;
-    }
-
+    if (isNaN(d.getTime())) { preview.textContent = 'Invalid date'; return; }
     const formatted = d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
     preview.textContent = `Week ${num} - ${formatted}`;
   }
 
   function formatDate(dateStr) {
     const d = new Date(dateStr + 'T00:00:00');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day   = String(d.getDate()).padStart(2, '0');
-    const year  = d.getFullYear();
-    return `${month}/${day}/${year}`;
+    return `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}/${d.getFullYear()}`;
   }
 
   function addLog(msg, type = '') {
@@ -289,47 +342,38 @@ body {
 
   function clearLog() { document.getElementById('log').innerHTML = ''; }
 
+  // ── Generate ──────────────────────────────────────────────────────────────
   async function generate() {
     const weekNum  = document.getElementById('weekNum').value.trim();
     const weekDate = document.getElementById('weekDate').value.trim();
 
-    if (!weekNum || !weekDate) {
-      addLog('⚠ Please fill in week number and date', 'error');
-      return;
-    }
+    if (!weekNum || !weekDate) { addLog('⚠ Please fill in week number and date', 'error'); return; }
+    if (currentRecords.length === 0) { addLog('⚠ No rows loaded — select a Care Coordinator first', 'error'); return; }
 
     clearLog();
+    addLog(`Generating for ${currentRecords.length} visible coverage rows…`, 'info');
 
-    addLog('Checking for duplicates in Weekly Coverage Schedule…', 'info');
-    try {
-      const coverage = await grist.docApi.fetchTable('Weekly_Coverage_Schedule');
-      const seen = new Map();
-      const duplicates = new Set();
-
-      for (let i = 0; i < coverage.id.length; i++) {
-        const pId = coverage.Practitioner_Name?.[i];
-        const fId = coverage.Facility_Name?.[i];
-        const pName = coverage.Practitioner_Name_Value?.[i] || pId || 'Unknown';
-        const fName = coverage.Facility_Name_Value?.[i]     || fId || 'Unknown';
-        const key = `${pId}__${fId}`;
-
-        if (seen.has(key)) {
-          duplicates.add(`${pName} @ ${fName}`);
-        } else {
-          seen.set(key, true);
-        }
+    // ── 1. Duplicate check within visible rows ─────────────────────────────
+    addLog('Checking for duplicates…', 'info');
+    const seen = new Map();
+    const duplicates = new Set();
+    for (const r of currentRecords) {
+      const pId = r.Practitioner_Name;
+      const fId = r.Facility_Name;
+      if (!pId || !fId) continue;
+      const key = `${pId}__${fId}`;
+      if (seen.has(key)) {
+        duplicates.add(`${r.Practitioner_Name_Value || pId} @ ${r.Facility_Name_Value || fId}`);
+      } else {
+        seen.set(key, true);
       }
-
-      if (duplicates.size > 0) {
-        addLog('🚫 Duplicates found — fix before generating:', 'error');
-        duplicates.forEach(d => addLog(`  ↳ ${d}`, 'error'));
-        return;
-      }
-      addLog('✓ No duplicates found', 'success');
-    } catch(e) {
-      addLog(`⚠ Could not verify duplicates: ${e.message}`, 'error');
+    }
+    if (duplicates.size > 0) {
+      addLog('🚫 Duplicates found — fix before generating:', 'error');
+      duplicates.forEach(d => addLog(`  ↳ ${d}`, 'error'));
       return;
     }
+    addLog('✓ No duplicates found', 'success');
 
     const weekLabel = `Week ${weekNum} - ${formatDate(weekDate)}`;
     const btn = document.getElementById('generateBtn');
@@ -337,113 +381,122 @@ body {
     btn.textContent = 'Working…';
 
     try {
-      addLog(`Creating week: ${weekLabel}`, 'info');
-      const weekResult = await grist.docApi.applyUserActions([
-        ['AddRecord', 'Weeks_Table', null, { Week: weekLabel }]
-      ]);
-      const weekId = weekResult.rowIds?.[0]
-        || weekResult.retValues?.[0]
-        || (Array.isArray(weekResult) ? weekResult[0] : null)
-        || weekResult;
-      addLog(`✓ Week created (id: ${weekId})`, 'success');
+      // ── 2. Validate references via live tables ─────────────────────────────
+      addLog('Fetching Facility table for validation…', 'info');
+      const facilityTable  = await grist.docApi.fetchTable('Facility');
+      const validFacilityIds = new Set(facilityTable.id);
 
-      addLog('Fetching Coverage records…', 'info');
-      const covRecords = await grist.docApi.fetchTable('Weekly_Coverage_Schedule');
-      addLog(`Found ${covRecords.id.length} coverage records`, 'info');
+      addLog('Fetching Employee table for validation…', 'info');
+      const employeeTable  = await grist.docApi.fetchTable('Employee');
+      const validEmployeeIds = new Set(employeeTable.id);
 
-      // Diagnostic: log first 5 rows to verify ID alignment
-      for (let d = 0; d < Math.min(5, covRecords.id.length); d++) {
-        addLog(`Row ${covRecords.id[d]}: pId=${covRecords.Practitioner_Name[d]}, fId=${covRecords.Facility_Name[d]}`, 'info');
+      addLog(`✓ ${validFacilityIds.size} facilities, ${validEmployeeIds.size} employees loaded`, 'success');
+
+      // ── 3. Find or create Weeks_Table row (shared across all CCs) ──────────
+      addLog(`Checking Weeks_Table for "${weekLabel}"…`, 'info');
+      const weeksTable = await grist.docApi.fetchTable('Weeks_Table');
+      let weekId = null;
+      for (let i = 0; i < weeksTable.id.length; i++) {
+        if (weeksTable.Week?.[i] === weekLabel) { weekId = weeksTable.id[i]; break; }
       }
 
-      // Build a map of Facility table row IDs to confirm references are valid
-      addLog('Fetching Facility table for reference validation…', 'info');
-      const facilityTable = await grist.docApi.fetchTable('Facility');
-      const validFacilityIds = new Set(facilityTable.id);
-      addLog(`✓ ${validFacilityIds.size} facilities loaded`, 'success');
+      if (weekId) {
+        addLog(`✓ Reusing existing Weeks_Table row (id: ${weekId})`, 'success');
+      } else {
+        addLog(`Creating Weeks_Table row: ${weekLabel}`, 'info');
+        const result = await grist.docApi.applyUserActions([
+          ['AddRecord', 'Weeks_Table', null, { Week: weekLabel }]
+        ]);
+        weekId = result.rowIds?.[0]
+          || result.retValues?.[0]
+          || (Array.isArray(result) ? result[0] : null)
+          || result;
+        addLog(`✓ Week created (id: ${weekId})`, 'success');
+      }
 
-      // Build a map of Practitioner table row IDs to confirm references are valid
-      addLog('Fetching Employee table for reference validation…', 'info');
-      const employeeTable = await grist.docApi.fetchTable('Employee');
-      const validEmployeeIds = new Set(employeeTable.id);
-      addLog(`✓ ${validEmployeeIds.size} practitioners loaded`, 'success');
+      // ── 4. Check already-existing Week_List rows for this week ────────────
+      addLog('Checking for already-generated rows…', 'info');
+      const existingList = await grist.docApi.fetchTable('Week_List');
+      const existingKeys = new Set();
+      for (let i = 0; i < existingList.id.length; i++) {
+        if (existingList.Week?.[i] === weekId) {
+          existingKeys.add(`${existingList.Practitioner_Name?.[i]}__${existingList.Facility_Name?.[i]}`);
+        }
+      }
+      addLog(`✓ ${existingKeys.size} rows already exist for this week across all groups`, 'info');
 
+      // ── 5. Build date window ───────────────────────────────────────────────
       const weekStartDate = new Date(weekDate + 'T00:00:00');
-      const weekEndDate = new Date(weekStartDate);
+      const weekEndDate   = new Date(weekStartDate);
       weekEndDate.setDate(weekStartDate.getDate() + 6);
 
-      let created = 0;
-      let skipped = 0;
+      // ── 6. Build actions from visible records only ─────────────────────────
+      let created = 0, skipped = 0, alreadyExists = 0;
       const actions = [];
 
-      for (let i = 0; i < covRecords.id.length; i++) {
-        const startDate = covRecords.Start_Date[i];
-        const endDate   = covRecords.End_Date[i];
+      for (const r of currentRecords) {
+        const practitionerId = r.Practitioner_Name;
+        const facilityId     = r.Facility_Name;
 
-        const start = startDate ? new Date(startDate * 1000) : null;
-        const end   = endDate   ? new Date(endDate   * 1000) : null;
-
-        const isActive = start &&
-          start <= weekEndDate &&
-          (!end || end >= weekStartDate);
-
-        if (!isActive) continue;
-
-        const practitionerId = covRecords.Practitioner_Name[i];
-        const facilityId     = covRecords.Facility_Name[i];
-
-        // Skip rows with missing or invalid references — these are the red-highlighted rows
+        // Validate references
         if (!practitionerId || !facilityId) {
-          addLog(`⚠ Row ${covRecords.id[i]}: missing practitioner or facility — skipped`, 'error');
-          skipped++;
-          continue;
+          addLog(`⚠ Row ${r.id}: missing practitioner or facility — skipped`, 'error');
+          skipped++; continue;
         }
         if (!validFacilityIds.has(facilityId)) {
-          addLog(`⚠ Row ${covRecords.id[i]}: facility ID ${facilityId} not found in Facility table — skipped`, 'error');
-          skipped++;
-          continue;
+          addLog(`⚠ Row ${r.id}: facility ID ${facilityId} not in Facility table — skipped`, 'error');
+          skipped++; continue;
         }
         if (!validEmployeeIds.has(practitionerId)) {
-          addLog(`⚠ Row ${covRecords.id[i]}: practitioner ID ${practitionerId} not found in Employee table — skipped`, 'error');
-          skipped++;
-          continue;
+          addLog(`⚠ Row ${r.id}: practitioner ID ${practitionerId} not in Employee table — skipped`, 'error');
+          skipped++; continue;
         }
 
+        // Active date check
+        const start = r.Start_Date ? new Date(r.Start_Date * 1000) : null;
+        const end   = r.End_Date   ? new Date(r.End_Date   * 1000) : null;
+        const isActive = start && start <= weekEndDate && (!end || end >= weekStartDate);
+        if (!isActive) continue;
+
+        // Idempotency: skip if already generated
+        const rowKey = `${practitionerId}__${facilityId}`;
+        if (existingKeys.has(rowKey)) { alreadyExists++; continue; }
+
         actions.push(['AddRecord', 'Week_List', null, {
-          Week:               weekId,
-          Practitioner_Name:  practitionerId,  // Employee table row ID (Reference)
-          Facility_Name:      facilityId,      // Facility table row ID (Reference)
-          Coverage_Type:      ['L', covRecords.Coverage_Type[i]],
-          Audit_Status:       'Not Initiated'
+          Week:              weekId,
+          Practitioner_Name: practitionerId,
+          Facility_Name:     facilityId,
+          Coverage_Type:     ['L', r.Coverage_Type],
+          Audit_Status:      'Not Initiated'
         }]);
         created++;
       }
 
-      if (skipped > 0) {
-        addLog(`⚠ ${skipped} rows skipped due to invalid references — fix red-highlighted rows in Weekly Coverage Schedule`, 'error');
-      }
+      if (alreadyExists > 0) addLog(`ℹ ${alreadyExists} rows already exist for this week — skipped`, 'info');
+      if (skipped > 0)       addLog(`⚠ ${skipped} rows skipped due to invalid references`, 'error');
 
       if (actions.length === 0) {
-        addLog('No active coverage records found', 'error');
+        addLog(alreadyExists > 0
+          ? '✅ All tasks for this group are already generated for this week!'
+          : '⚠ No active rows to generate', 'error');
         return;
       }
 
       addLog(`Creating ${created} Week_List rows…`, 'info');
-
       for (let i = 0; i < actions.length; i += 50) {
-        const batch = actions.slice(i, i + 50);
-        await grist.docApi.applyUserActions(batch);
-        addLog(`✓ Created ${Math.min(i + 50, actions.length)}/${actions.length} rows`, 'success');
+        await grist.docApi.applyUserActions(actions.slice(i, i + 50));
+        addLog(`✓ ${Math.min(i + 50, actions.length)}/${actions.length} rows created`, 'success');
       }
 
-      addLog(`✅ Done! ${created} rows added for ${weekLabel}`, 'success');
+      addLog(`✅ Done! ${created} weekly tasks added for ${weekLabel}`, 'success');
 
     } catch(e) {
       addLog(`Error: ${e.message || JSON.stringify(e)}`, 'error');
       console.error(e);
     } finally {
       btn.disabled = false;
-      btn.textContent = 'Generate Week Rows';
+      btn.textContent = 'Generate Weekly Tasks';
+      updateScopeBadge(); // re-enable button only if records still loaded
     }
   }
 </script>
