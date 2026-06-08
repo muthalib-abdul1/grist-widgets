@@ -65,7 +65,7 @@ tbody td:first-child {
 .cell-val {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 30px; height: 20px; border-radius: 4px;
-  font-size: 11px; font-weight: 500; padding: 0 6px;
+  font-size: 12px; font-weight: 500; padding: 0 6px;
 }
 .cell-val.zero { color: #ccc; }
 .cell-val.low  { background: #e8f5e9; color: #2d6a4f; }
@@ -321,8 +321,6 @@ tbody td:first-child {
 
   function getColor(n) {
     if (!n || n === 0) return 'zero';
-    if (n <= 20) return 'low';
-    if (n <= 50) return 'mid';
     return 'high';
   }
 </script>
