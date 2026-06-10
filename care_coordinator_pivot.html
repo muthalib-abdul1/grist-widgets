@@ -68,14 +68,22 @@ tbody td:first-child {
   font-size: 12px; font-weight: 500; padding: 0 6px;
 }
 .cell-val.zero { color: #ccc; }
-.cell-val.low  { background: #e8f5e9; color: #2d6a4f; }
-.cell-val.mid  { background: #fff3e0; color: #e65100; }
 .cell-val.high { background: #fde8e8; color: #c0392b; }
-.cell-wrap { position: relative; display: inline-block; }
+.cell-wrap {
+  position: relative; display: inline-block;
+  margin: 6px 8px;
+}
 .cell-complete {
   position: absolute; top: -6px; right: -8px;
   font-size: 9px; font-weight: 600; color: #2d6a4f;
   background: #e8f5e9; border-radius: 3px;
+  padding: 0 3px; line-height: 14px;
+  font-family: 'DM Mono', monospace;
+}
+.cell-skipped {
+  position: absolute; top: -6px; left: -8px;
+  font-size: 9px; font-weight: 600; color: #c0392b;
+  background: #fde8e8; border-radius: 3px;
   padding: 0 3px; line-height: 14px;
   font-family: 'DM Mono', monospace;
 }
@@ -207,11 +215,11 @@ tbody td:first-child {
       return;
     }
 
-    // matrix[weekLabel][cc] = { incomplete, complete }
+    // matrix[weekLabel][cc] = { incomplete, complete, skipped }
     const matrix = {};
     weeks.forEach(([wId]) => {
       matrix[wId] = {};
-      coordinators.forEach(cc => { matrix[wId][cc] = { incomplete: 0, complete: 0 }; });
+      coordinators.forEach(cc => { matrix[wId][cc] = { incomplete: 0, complete: 0, skipped: 0 }; });
     });
 
     for (let i = 0; i < wl.id.length; i++) {
@@ -226,7 +234,10 @@ tbody td:first-child {
       const auditStatus    = wl.Audit_Status    ? wl.Audit_Status[i]    : null;
       const roundingStatus = wl.Rounding_Status ? wl.Rounding_Status[i] : null;
 
-      if (roundingStatus === ROUNDING_SKIP) continue; // excluded from both
+      if (roundingStatus === ROUNDING_SKIP) {
+        matrix[weekLabel][cc].skipped++;
+        continue;
+      }
 
       if (auditStatus === AUDIT_COMPLETE) {
         matrix[weekLabel][cc].complete++;
@@ -235,12 +246,14 @@ tbody td:first-child {
       }
     }
 
-    // Row totals only (no column totals)
+    // Row totals
     const rowTotals   = {};
     const rowComplete = {};
+    const rowSkipped  = {};
     weeks.forEach(([wId]) => {
       rowTotals[wId]   = coordinators.reduce((s, cc) => s + matrix[wId][cc].incomplete, 0);
       rowComplete[wId] = coordinators.reduce((s, cc) => s + matrix[wId][cc].complete,   0);
+      rowSkipped[wId]  = coordinators.reduce((s, cc) => s + matrix[wId][cc].skipped,    0);
     });
 
     // ── Render thead ──────────────────────────────────────────────────────
@@ -260,7 +273,7 @@ tbody td:first-child {
     hRow.appendChild(totalTh);
     thead.appendChild(hRow);
 
-    // ── Render tbody (no total row) ───────────────────────────────────────
+    // ── Render tbody ──────────────────────────────────────────────────────
     const tbody = document.getElementById('tbody');
     tbody.innerHTML = '';
 
@@ -274,49 +287,53 @@ tbody td:first-child {
       coordinators.forEach(cc => {
         const inc  = matrix[wId][cc].incomplete;
         const comp = matrix[wId][cc].complete;
+        const skip = matrix[wId][cc].skipped;
         const td   = document.createElement('td');
-        const wrap = document.createElement('span');
-        wrap.className = 'cell-wrap';
-
-        const span = document.createElement('span');
-        span.className = 'cell-val ' + getColor(inc);
-        span.textContent = inc === 0 ? '–' : inc;
-        wrap.appendChild(span);
-
-        if (comp > 0) {
-          const sup = document.createElement('span');
-          sup.className = 'cell-complete';
-          sup.textContent = comp;
-          sup.title = comp + ' completed';
-          wrap.appendChild(sup);
-        }
-
-        td.appendChild(wrap);
+        td.appendChild(makeCell(inc, comp, skip));
         tr.appendChild(td);
       });
 
-      // Row total
-      const rtd  = document.createElement('td');
-      const wrap = document.createElement('span');
-      wrap.className = 'cell-wrap';
-      const rs = document.createElement('span');
-      rs.className = 'cell-val ' + getColor(rowTotals[wId]);
-      rs.textContent = rowTotals[wId] || '–';
-      wrap.appendChild(rs);
-      if (rowComplete[wId] > 0) {
-        const sup = document.createElement('span');
-        sup.className = 'cell-complete';
-        sup.textContent = rowComplete[wId];
-        sup.title = rowComplete[wId] + ' completed';
-        wrap.appendChild(sup);
-      }
-      rtd.appendChild(wrap);
+      // Row total cell
+      const rtd = document.createElement('td');
+      rtd.appendChild(makeCell(rowTotals[wId], rowComplete[wId], rowSkipped[wId]));
       tr.appendChild(rtd);
+
       tbody.appendChild(tr);
     });
 
     document.getElementById('loading').style.display = 'none';
     document.getElementById('pivotTable').style.display = 'table';
+  }
+
+  function makeCell(inc, comp, skip) {
+    const wrap = document.createElement('span');
+    wrap.className = 'cell-wrap';
+
+    // Red skipped badge — top left
+    if (skip > 0) {
+      const skipSup = document.createElement('span');
+      skipSup.className = 'cell-skipped';
+      skipSup.textContent = skip;
+      skipSup.title = skip + ' skipped (❌)';
+      wrap.appendChild(skipSup);
+    }
+
+    // Main incomplete number
+    const span = document.createElement('span');
+    span.className = 'cell-val ' + getColor(inc);
+    span.textContent = inc === 0 ? '–' : inc;
+    wrap.appendChild(span);
+
+    // Green completed badge — top right
+    if (comp > 0) {
+      const sup = document.createElement('span');
+      sup.className = 'cell-complete';
+      sup.textContent = comp;
+      sup.title = comp + ' completed';
+      wrap.appendChild(sup);
+    }
+
+    return wrap;
   }
 
   function getColor(n) {
