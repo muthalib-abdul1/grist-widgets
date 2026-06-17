@@ -62,6 +62,28 @@ tbody td:first-child {
   border-right: 1px solid #e0deda; font-size: 13px;
   padding-right: 16px;
 }
+
+/* Total row styling */
+tbody tr.total-row {
+  border-top: 2px solid #1a1916;
+}
+tbody tr.total-row td {
+  background: #1a1916;
+  color: #fff;
+  font-weight: 600;
+}
+tbody tr.total-row td:first-child {
+  background: #111;
+  color: #fff;
+  border-right: 1px solid #333;
+}
+tbody tr.total-row .cell-val {
+  color: #fff;
+}
+tbody tr.total-row .cell-val.zero {
+  color: #555;
+}
+
 .cell-val {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 30px; height: 20px; border-radius: 4px;
@@ -246,7 +268,7 @@ tbody td:first-child {
       }
     }
 
-    // Row totals
+    // Row totals (incomplete only)
     const rowTotals   = {};
     const rowComplete = {};
     const rowSkipped  = {};
@@ -255,6 +277,13 @@ tbody td:first-child {
       rowComplete[wId] = coordinators.reduce((s, cc) => s + matrix[wId][cc].complete,   0);
       rowSkipped[wId]  = coordinators.reduce((s, cc) => s + matrix[wId][cc].skipped,    0);
     });
+
+    // Column totals (incomplete only)
+    const colTotals = {};
+    coordinators.forEach(cc => {
+      colTotals[cc] = weeks.reduce((s, [wId]) => s + matrix[wId][cc].incomplete, 0);
+    });
+    const grandTotal = coordinators.reduce((s, cc) => s + colTotals[cc], 0);
 
     // ── Render thead ──────────────────────────────────────────────────────
     const thead = document.getElementById('thead');
@@ -300,6 +329,33 @@ tbody td:first-child {
 
       tbody.appendChild(tr);
     });
+
+    // ── Total row ─────────────────────────────────────────────────────────
+    const totalTr = document.createElement('tr');
+    totalTr.className = 'total-row';
+
+    const labelTd = document.createElement('td');
+    labelTd.textContent = 'TOTAL';
+    totalTr.appendChild(labelTd);
+
+    coordinators.forEach(cc => {
+      const td = document.createElement('td');
+      const span = document.createElement('span');
+      span.className = 'cell-val ' + (colTotals[cc] === 0 ? 'zero' : 'high');
+      span.textContent = colTotals[cc] === 0 ? '–' : colTotals[cc];
+      td.appendChild(span);
+      totalTr.appendChild(td);
+    });
+
+    // Grand total cell
+    const gtd = document.createElement('td');
+    const gspan = document.createElement('span');
+    gspan.className = 'cell-val ' + (grandTotal === 0 ? 'zero' : 'high');
+    gspan.textContent = grandTotal === 0 ? '–' : grandTotal;
+    gtd.appendChild(gspan);
+    totalTr.appendChild(gtd);
+
+    tbody.appendChild(totalTr);
 
     document.getElementById('loading').style.display = 'none';
     document.getElementById('pivotTable').style.display = 'table';
