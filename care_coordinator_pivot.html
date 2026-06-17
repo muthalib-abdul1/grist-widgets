@@ -113,6 +113,13 @@ tbody tr.total-row .cell-val.zero {
   padding: 32px; text-align: center; color: #aaa;
   font-family: 'DM Mono', monospace; font-size: 13px;
 }
+.table-note {
+  margin-top: 10px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: #aaa;
+  letter-spacing: 0.03em;
+}
 </style>
 </head>
 <body>
@@ -125,12 +132,15 @@ tbody tr.total-row .cell-val.zero {
 </div>
 
 <div class="table-wrap">
+
   <div class="loading" id="loading">Loading data…</div>
   <table id="pivotTable" style="display:none">
     <thead id="thead"></thead>
     <tbody id="tbody"></tbody>
   </table>
 </div>
+
+<p class="table-note">Only weeks with pending tasks are shown in the table above.</p>
 
 <script>
   const ROUNDING_SKIP  = '❌';
