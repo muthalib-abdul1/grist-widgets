@@ -298,7 +298,7 @@ tbody tr.total-row .cell-val.zero {
       hRow.appendChild(th);
     });
     const totalTh = document.createElement('th');
-    totalTh.textContent = 'Total Incomplete';
+    totalTh.textContent = 'TOTAL';
     hRow.appendChild(totalTh);
     thead.appendChild(hRow);
 
@@ -335,7 +335,7 @@ tbody tr.total-row .cell-val.zero {
     totalTr.className = 'total-row';
 
     const labelTd = document.createElement('td');
-    labelTd.textContent = 'TOTAL';
+    labelTd.textContent = 'Total Incomplete';
     totalTr.appendChild(labelTd);
 
     coordinators.forEach(cc => {
