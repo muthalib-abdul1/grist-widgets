@@ -63,11 +63,18 @@ body {
   font-family: 'DM Mono', monospace; font-size: 11px;
   background: #fff; border-radius: 10px; border: 1px solid #e0deda;
 }
+.debug {
+  font-size: 10px; font-family: 'DM Mono', monospace;
+  background: #fff3cd; border: 1px solid #ffc107;
+  border-radius: 6px; padding: 8px; margin-bottom: 12px;
+  color: #555; word-break: break-all; white-space: pre-wrap;
+}
 </style>
 </head>
 <body>
 
 <div class="facility-header" id="facilityName">FACILITY PRACTITIONERS</div>
+<div id="debug" class="debug">Waiting for data...</div>
 <div class="columns">
   <div>
     <div class="column-header">Assigned</div>
@@ -105,11 +112,10 @@ body {
 
   function resolveRefList(raw) {
     if (!raw) return [];
-    // Grist ReferenceList format: ["L", id1, id2, ...]
     if (Array.isArray(raw)) {
       var ids = raw.filter(function(v) { return typeof v === 'number'; });
       if (ids.length > 0) {
-        return ids.map(function(id) { return empMap[id] || null; }).filter(Boolean);
+        return ids.map(function(id) { return empMap[id] || ('ID:' + id); }).filter(Boolean);
       }
     }
     if (typeof raw === 'string' && raw.trim()) {
@@ -133,6 +139,16 @@ body {
   }
 
   function render(record) {
+    // ── DEBUG: show all keys and the raw credentialed value ─────────────────
+    var credKey = findKey(record, ['Credentialed_Practitioners', 'CredentialedPractitioners', 'Credentialed']);
+    var rawCred = credKey ? record[credKey] : 'KEY NOT FOUND';
+    var debugEl = document.getElementById('debug');
+    debugEl.textContent =
+      'Keys: ' + Object.keys(record).join(', ') + '\n' +
+      'Cred key found: ' + (credKey || 'NONE') + '\n' +
+      'Raw value: ' + JSON.stringify(rawCred) + '\n' +
+      'empMap size: ' + Object.keys(empMap).length;
+
     // Facility name
     var facilityKey = findKey(record, ['Facility_Name', 'FacilityName', 'Facility']);
     var facilityName = facilityKey ? record[facilityKey] : '';
@@ -170,9 +186,7 @@ body {
       assignedCount + ' practitioner' + (assignedCount !== 1 ? 's' : '');
 
     // ── RIGHT: Credentialed ─────────────────────────────────────────────────
-    var credKey = findKey(record, ['Credentialed_Practitioners', 'CredentialedPractitioners', 'Credentialed']);
-    var raw = credKey ? record[credKey] : null;
-    var names = resolveRefList(raw);
+    var names = resolveRefList(rawCred);
     names.sort(function(a, b) { return a.localeCompare(b); });
 
     var credList = document.getElementById('credentialedList');
@@ -194,7 +208,6 @@ body {
     }
   }
 
-  // Load Employee table FIRST, then set up the record listener
   grist.ready({ requiredAccess: 'read table' });
 
   grist.docApi.fetchTable('Employee').then(function(data) {
@@ -202,13 +215,12 @@ body {
       empMap[data.id[i]] = data.Employee_Name[i];
     }
     empMapReady = true;
-    // If a record already arrived before the map was ready, render it now
     if (pendingRecord) {
       render(pendingRecord);
       pendingRecord = null;
     }
   }).catch(function(e) {
-    empMapReady = true; // proceed anyway, names will be missing
+    empMapReady = true;
     if (pendingRecord) {
       render(pendingRecord);
       pendingRecord = null;
@@ -217,7 +229,6 @@ body {
 
   grist.onRecord(function(record) {
     if (!empMapReady) {
-      // Store and wait for the map to finish loading
       pendingRecord = record;
     } else {
       render(record);
