@@ -43,9 +43,9 @@ body {
   transition: box-shadow 0.15s;
 }
 .practitioner-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
-.practitioner-card.primary    { border-left: 4px solid #1a1916; }
-.practitioner-card.backup     { border-left: 4px solid #e0deda; }
-.practitioner-card.empty-slot { border-left: 4px solid #f0eeea; background: #fafaf8; opacity: 0.55; }
+.practitioner-card.primary     { border-left: 4px solid #1a1916; }
+.practitioner-card.backup      { border-left: 4px solid #e0deda; }
+.practitioner-card.empty-slot  { border-left: 4px solid #f0eeea; background: #fafaf8; opacity: 0.55; }
 .practitioner-card.credentialed { border-left: 4px solid #1a1916; }
 .role-badge {
   font-size: 10px; font-weight: 600; text-transform: uppercase;
@@ -63,18 +63,11 @@ body {
   font-family: 'DM Mono', monospace; font-size: 11px;
   background: #fff; border-radius: 10px; border: 1px solid #e0deda;
 }
-.debug {
-  font-size: 10px; font-family: 'DM Mono', monospace;
-  background: #fff3cd; border: 1px solid #ffc107;
-  border-radius: 6px; padding: 8px; margin-bottom: 12px;
-  color: #555; word-break: break-all; white-space: pre-wrap;
-}
 </style>
 </head>
 <body>
 
 <div class="facility-header" id="facilityName">FACILITY PRACTITIONERS</div>
-<div id="debug" class="debug">Waiting for data...</div>
 <div class="columns">
   <div>
     <div class="column-header">Assigned</div>
@@ -89,40 +82,9 @@ body {
 </div>
 
 <script>
-  var empMap = {};
-  var empMapReady = false;
-  var pendingRecord = null;
-
-  function findKey(record, candidates) {
-    var keys = Object.keys(record);
-    for (var i = 0; i < candidates.length; i++) {
-      var c = candidates[i].toLowerCase();
-      for (var j = 0; j < keys.length; j++) {
-        if (keys[j].toLowerCase() === c) return keys[j];
-      }
-    }
-    for (var i = 0; i < candidates.length; i++) {
-      var c = candidates[i].toLowerCase();
-      for (var j = 0; j < keys.length; j++) {
-        if (keys[j].toLowerCase().includes(c)) return keys[j];
-      }
-    }
-    return null;
-  }
-
-  function resolveRefList(raw) {
-    if (!raw) return [];
-    if (Array.isArray(raw)) {
-      var ids = raw.filter(function(v) { return typeof v === 'number'; });
-      if (ids.length > 0) {
-        return ids.map(function(id) { return empMap[id] || ('ID:' + id); }).filter(Boolean);
-      }
-    }
-    if (typeof raw === 'string' && raw.trim()) {
-      return raw.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
-    }
-    return [];
-  }
+  // Maps loaded once at startup
+  var empMap = {};      // id -> Employee_Name
+  var facTable = null;  // full Facility table: { id:[], Credentialed_Practitioners:[], ... }
 
   function makeCard(text, badgeText, cardClass, badgeClass, nameClass) {
     var card = document.createElement('div');
@@ -138,101 +100,120 @@ body {
     return card;
   }
 
-  function render(record) {
-    // ── DEBUG: show all keys and the raw credentialed value ─────────────────
-    var credKey = findKey(record, ['Credentialed_Practitioners', 'CredentialedPractitioners', 'Credentialed']);
-    var rawCred = credKey ? record[credKey] : 'KEY NOT FOUND';
-    var debugEl = document.getElementById('debug');
-    debugEl.textContent =
-      'Keys: ' + Object.keys(record).join(', ') + '\n' +
-      'Cred key found: ' + (credKey || 'NONE') + '\n' +
-      'Raw value: ' + JSON.stringify(rawCred) + '\n' +
-      'empMap size: ' + Object.keys(empMap).length;
-
-    // Facility name
-    var facilityKey = findKey(record, ['Facility_Name', 'FacilityName', 'Facility']);
-    var facilityName = facilityKey ? record[facilityKey] : '';
-    document.getElementById('facilityName').textContent =
-      facilityName ? facilityName.toUpperCase() : 'FACILITY PRACTITIONERS';
-
-    // ── LEFT: Assigned ──────────────────────────────────────────────────────
+  function renderAssigned(record) {
     var slots = [
-      { role: 'Primary',    candidates: ['Primary_Practitioner', 'Primary', 'PrimaryPractitioner'], isPrimary: true  },
-      { role: '1st Backup', candidates: ['1st_Backup', 'c1st_Backup', 'Backup1'],  isPrimary: false },
-      { role: '2nd Backup', candidates: ['2nd_Backup', 'c2nd_Backup', 'Backup2'],  isPrimary: false },
-      { role: '3rd Backup', candidates: ['3rd_Backup', 'c3rd_Backup', 'Backup3'],  isPrimary: false },
-      { role: '4th Backup', candidates: ['4th_Backup', 'c4th_Backup', 'Backup4'],  isPrimary: false },
+      { role: 'Primary',    key: 'Primary_Practitioner', isPrimary: true  },
+      { role: '1st Backup', key: 'c1st_Backup',          isPrimary: false },
+      { role: '2nd Backup', key: 'c2nd_Backup',          isPrimary: false },
+      { role: '3rd Backup', key: 'c3rd_Backup',          isPrimary: false },
+      { role: '4th Backup', key: 'c4th_Backup',          isPrimary: false },
     ];
-
-    var assignedList = document.getElementById('assignedList');
-    assignedList.innerHTML = '';
-    var assignedCount = 0;
-
+    var list = document.getElementById('assignedList');
+    list.innerHTML = '';
+    var count = 0;
     slots.forEach(function(slot) {
-      var key = findKey(record, slot.candidates);
-      var value = key ? record[key] : undefined;
+      var value = record[slot.key];
       var hasValue = value && String(value).trim() !== '';
-      if (hasValue) assignedCount++;
-      var cardClass  = hasValue ? (slot.isPrimary ? 'primary' : 'backup') : 'empty-slot';
-      var badgeClass = hasValue ? (slot.isPrimary ? 'primary' : 'backup') : 'empty';
-      assignedList.appendChild(makeCard(
+      if (hasValue) count++;
+      list.appendChild(makeCard(
         hasValue ? String(value) : 'Not assigned',
-        slot.role, cardClass, badgeClass,
+        slot.role,
+        hasValue ? (slot.isPrimary ? 'primary' : 'backup') : 'empty-slot',
+        hasValue ? (slot.isPrimary ? 'primary' : 'backup') : 'empty',
         hasValue ? '' : 'unassigned'
       ));
     });
-
     document.getElementById('assignedCount').textContent =
-      assignedCount + ' practitioner' + (assignedCount !== 1 ? 's' : '');
+      count + ' practitioner' + (count !== 1 ? 's' : '');
+  }
 
-    // ── RIGHT: Credentialed ─────────────────────────────────────────────────
-    var names = resolveRefList(rawCred);
+  function renderCredentialed(rowId) {
+    var list = document.getElementById('credentialedList');
+    var countEl = document.getElementById('credentialedCount');
+
+    if (!facTable) {
+      list.innerHTML = '<div class="empty-state">Loading...</div>';
+      return;
+    }
+
+    // Find this facility row in the fetched table
+    var idx = facTable.id.indexOf(rowId);
+    if (idx === -1) {
+      list.innerHTML = '<div class="empty-state">No credentialed practitioners on record</div>';
+      countEl.textContent = '';
+      return;
+    }
+
+    var raw = facTable.Credentialed_Practitioners[idx];
+    // raw is ["L", id1, id2, ...] from fetchTable
+    var ids = Array.isArray(raw)
+      ? raw.filter(function(v) { return typeof v === 'number'; })
+      : [];
+
+    var names = ids.map(function(id) { return empMap[id]; }).filter(Boolean);
     names.sort(function(a, b) { return a.localeCompare(b); });
 
-    var credList = document.getElementById('credentialedList');
-    credList.innerHTML = '';
-
+    list.innerHTML = '';
     if (names.length === 0) {
-      document.getElementById('credentialedCount').textContent = '';
-      credList.innerHTML = '<div class="empty-state">No credentialed practitioners on record</div>';
-    } else {
-      document.getElementById('credentialedCount').textContent =
-        names.length + ' practitioner' + (names.length !== 1 ? 's' : '');
-      names.forEach(function(name, i) {
-        credList.appendChild(makeCard(
-          name,
-          String(i + 1).padStart(2, '0'),
-          'credentialed', 'index', ''
-        ));
-      });
+      countEl.textContent = '';
+      list.innerHTML = '<div class="empty-state">No credentialed practitioners on record</div>';
+      return;
     }
+
+    countEl.textContent = names.length + ' practitioner' + (names.length !== 1 ? 's' : '');
+    names.forEach(function(name, i) {
+      list.appendChild(makeCard(
+        name,
+        String(i + 1).padStart(2, '0'),
+        'credentialed', 'index', ''
+      ));
+    });
   }
 
   grist.ready({ requiredAccess: 'read table' });
+
+  // Load both tables upfront
+  var empReady = false, facReady = false;
+  var pendingRowId = null;
+  var pendingRecord = null;
+
+  function tryRender() {
+    if (empReady && facReady && pendingRowId !== null) {
+      renderCredentialed(pendingRowId);
+    }
+  }
 
   grist.docApi.fetchTable('Employee').then(function(data) {
     for (var i = 0; i < data.id.length; i++) {
       empMap[data.id[i]] = data.Employee_Name[i];
     }
-    empMapReady = true;
-    if (pendingRecord) {
-      render(pendingRecord);
-      pendingRecord = null;
-    }
-  }).catch(function(e) {
-    empMapReady = true;
-    if (pendingRecord) {
-      render(pendingRecord);
-      pendingRecord = null;
-    }
+    empReady = true;
+    tryRender();
+  });
+
+  grist.docApi.fetchTable('Facility').then(function(data) {
+    facTable = data;
+    facReady = true;
+    tryRender();
   });
 
   grist.onRecord(function(record) {
-    if (!empMapReady) {
-      pendingRecord = record;
-    } else {
-      render(record);
+    // Facility name header
+    var fname = record.Facility_Name || '';
+    document.getElementById('facilityName').textContent =
+      fname ? String(fname).toUpperCase() : 'FACILITY PRACTITIONERS';
+
+    // Left panel — assigned (comes through onRecord fine)
+    renderAssigned(record);
+
+    // Right panel — use row id to look up in fetched table
+    pendingRowId = record.id;
+    pendingRecord = record;
+
+    if (empReady && facReady) {
+      renderCredentialed(record.id);
     }
+    // else tryRender() will fire once both are ready
   });
 </script>
 </body>
