@@ -14,19 +14,16 @@ body {
   min-height: 100vh;
   padding: 16px;
 }
-
 .facility-header {
   font-size: 11px; font-weight: 600; text-transform: uppercase;
   letter-spacing: 0.07em; color: #aaa;
   font-family: 'DM Mono', monospace; margin-bottom: 14px;
 }
-
 .columns {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
-
 .column-header {
   font-size: 10px; font-weight: 600; text-transform: uppercase;
   letter-spacing: 0.08em; color: #999;
@@ -36,13 +33,8 @@ body {
 .column-count {
   font-size: 10px; font-family: 'DM Mono', monospace;
   color: #bbb; margin-bottom: 10px;
+  min-height: 16px;
 }
-
-.divider {
-  width: 1px; background: #e0deda;
-  position: absolute; left: 50%; top: 0; bottom: 0;
-}
-
 .practitioner-card {
   background: #fff; border: 1px solid #e0deda;
   border-radius: 10px; padding: 12px 14px;
@@ -51,48 +43,37 @@ body {
   transition: box-shadow 0.15s;
 }
 .practitioner-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
-.practitioner-card.primary   { border-left: 4px solid #1a1916; }
-.practitioner-card.backup    { border-left: 4px solid #e0deda; }
+.practitioner-card.primary    { border-left: 4px solid #1a1916; }
+.practitioner-card.backup     { border-left: 4px solid #e0deda; }
 .practitioner-card.empty-slot { border-left: 4px solid #f0eeea; background: #fafaf8; opacity: 0.55; }
 .practitioner-card.credentialed { border-left: 4px solid #1a1916; }
-
 .role-badge {
   font-size: 10px; font-weight: 600; text-transform: uppercase;
   letter-spacing: 0.06em; font-family: 'DM Mono', monospace;
   padding: 3px 7px; border-radius: 4px; white-space: nowrap; flex-shrink: 0;
 }
-.role-badge.primary     { background: #1a1916; color: #fff; }
-.role-badge.backup      { background: #f1f0ed; color: #888; }
-.role-badge.empty       { background: #f1f0ed; color: #ccc; }
-.role-badge.index       { background: #f1f0ed; color: #888; min-width: 30px; text-align: center; }
-
+.role-badge.primary { background: #1a1916; color: #fff; }
+.role-badge.backup  { background: #f1f0ed; color: #888; }
+.role-badge.empty   { background: #f1f0ed; color: #ccc; }
+.role-badge.index   { background: #f1f0ed; color: #888; min-width: 30px; text-align: center; }
 .practitioner-name { font-size: 13px; font-weight: 500; color: #111; }
 .practitioner-name.unassigned { color: #ccc; font-style: italic; font-weight: 400; }
-
 .empty-state {
   padding: 24px; text-align: center; color: #bbb;
   font-family: 'DM Mono', monospace; font-size: 11px;
   background: #fff; border-radius: 10px; border: 1px solid #e0deda;
-}
-
-.section-divider {
-  border: none; border-top: 1px solid #e0deda; margin: 0 0 12px 0;
 }
 </style>
 </head>
 <body>
 
 <div class="facility-header" id="facilityName">FACILITY PRACTITIONERS</div>
-
 <div class="columns">
-  <!-- LEFT: Assigned (Primary + Backups) -->
   <div>
     <div class="column-header">Assigned</div>
     <div class="column-count" id="assignedCount"></div>
     <div id="assignedList"><div class="empty-state">Select a facility</div></div>
   </div>
-
-  <!-- RIGHT: Credentialed -->
   <div>
     <div class="column-header">Credentialed</div>
     <div class="column-count" id="credentialedCount"></div>
@@ -101,7 +82,9 @@ body {
 </div>
 
 <script>
-  grist.ready({ requiredAccess: 'read table' });
+  var empMap = {};
+  var empMapReady = false;
+  var pendingRecord = null;
 
   function findKey(record, candidates) {
     var keys = Object.keys(record);
@@ -120,21 +103,14 @@ body {
     return null;
   }
 
-  var empMap = {};
-  grist.docApi.fetchTable('Employee').then(function(data) {
-    for (var i = 0; i < data.id.length; i++) {
-      empMap[data.id[i]] = data.Employee_Name[i];
-    }
-  }).catch(function() {});
-
   function resolveRefList(raw) {
     if (!raw) return [];
-    var ids = [];
+    // Grist ReferenceList format: ["L", id1, id2, ...]
     if (Array.isArray(raw)) {
-      ids = raw.filter(function(v) { return typeof v === 'number'; });
-    }
-    if (ids.length > 0) {
-      return ids.map(function(id) { return empMap[id] || null; }).filter(Boolean);
+      var ids = raw.filter(function(v) { return typeof v === 'number'; });
+      if (ids.length > 0) {
+        return ids.map(function(id) { return empMap[id] || null; }).filter(Boolean);
+      }
     }
     if (typeof raw === 'string' && raw.trim()) {
       return raw.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
@@ -156,20 +132,20 @@ body {
     return card;
   }
 
-  grist.onRecord(function(record) {
+  function render(record) {
     // Facility name
     var facilityKey = findKey(record, ['Facility_Name', 'FacilityName', 'Facility']);
     var facilityName = facilityKey ? record[facilityKey] : '';
     document.getElementById('facilityName').textContent =
       facilityName ? facilityName.toUpperCase() : 'FACILITY PRACTITIONERS';
 
-    // ── LEFT: Assigned (Primary + Backups) ──────────────────────────────────
+    // ── LEFT: Assigned ──────────────────────────────────────────────────────
     var slots = [
       { role: 'Primary',    candidates: ['Primary_Practitioner', 'Primary', 'PrimaryPractitioner'], isPrimary: true  },
-      { role: '1st Backup', candidates: ['1st_Backup', 'c1st_Backup', '_1st_Backup', 'Backup1'],    isPrimary: false },
-      { role: '2nd Backup', candidates: ['2nd_Backup', 'c2nd_Backup', '_2nd_Backup', 'Backup2'],    isPrimary: false },
-      { role: '3rd Backup', candidates: ['3rd_Backup', 'c3rd_Backup', '_3rd_Backup', 'Backup3'],    isPrimary: false },
-      { role: '4th Backup', candidates: ['4th_Backup', 'c4th_Backup', '_4th_Backup', 'Backup4'],    isPrimary: false },
+      { role: '1st Backup', candidates: ['1st_Backup', 'c1st_Backup', 'Backup1'],  isPrimary: false },
+      { role: '2nd Backup', candidates: ['2nd_Backup', 'c2nd_Backup', 'Backup2'],  isPrimary: false },
+      { role: '3rd Backup', candidates: ['3rd_Backup', 'c3rd_Backup', 'Backup3'],  isPrimary: false },
+      { role: '4th Backup', candidates: ['4th_Backup', 'c4th_Backup', 'Backup4'],  isPrimary: false },
     ];
 
     var assignedList = document.getElementById('assignedList');
@@ -181,13 +157,13 @@ body {
       var value = key ? record[key] : undefined;
       var hasValue = value && String(value).trim() !== '';
       if (hasValue) assignedCount++;
-
       var cardClass  = hasValue ? (slot.isPrimary ? 'primary' : 'backup') : 'empty-slot';
       var badgeClass = hasValue ? (slot.isPrimary ? 'primary' : 'backup') : 'empty';
-      var nameClass  = hasValue ? '' : 'unassigned';
-      var nameText   = hasValue ? String(value) : 'Not assigned';
-
-      assignedList.appendChild(makeCard(nameText, slot.role, cardClass, badgeClass, nameClass));
+      assignedList.appendChild(makeCard(
+        hasValue ? String(value) : 'Not assigned',
+        slot.role, cardClass, badgeClass,
+        hasValue ? '' : 'unassigned'
+      ));
     });
 
     document.getElementById('assignedCount').textContent =
@@ -209,9 +185,42 @@ body {
       document.getElementById('credentialedCount').textContent =
         names.length + ' practitioner' + (names.length !== 1 ? 's' : '');
       names.forEach(function(name, i) {
-        var badge = String(i + 1).padStart(2, '0');
-        credList.appendChild(makeCard(name, badge, 'credentialed', 'index', ''));
+        credList.appendChild(makeCard(
+          name,
+          String(i + 1).padStart(2, '0'),
+          'credentialed', 'index', ''
+        ));
       });
+    }
+  }
+
+  // Load Employee table FIRST, then set up the record listener
+  grist.ready({ requiredAccess: 'read table' });
+
+  grist.docApi.fetchTable('Employee').then(function(data) {
+    for (var i = 0; i < data.id.length; i++) {
+      empMap[data.id[i]] = data.Employee_Name[i];
+    }
+    empMapReady = true;
+    // If a record already arrived before the map was ready, render it now
+    if (pendingRecord) {
+      render(pendingRecord);
+      pendingRecord = null;
+    }
+  }).catch(function(e) {
+    empMapReady = true; // proceed anyway, names will be missing
+    if (pendingRecord) {
+      render(pendingRecord);
+      pendingRecord = null;
+    }
+  });
+
+  grist.onRecord(function(record) {
+    if (!empMapReady) {
+      // Store and wait for the map to finish loading
+      pendingRecord = record;
+    } else {
+      render(record);
     }
   });
 </script>
