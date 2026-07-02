@@ -317,6 +317,8 @@ tbody tr.total-row .cell-val.zero {
     tbody.innerHTML = '';
 
     weeks.forEach(([wId, label]) => {
+      // Skip rows where total incomplete is zero
+      if (rowTotals[wId] === 0) return;
       const tr = document.createElement('tr');
 
       const weekTd = document.createElement('td');
