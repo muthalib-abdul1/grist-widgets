@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Coverage Reconciliation</title>
+<script src="https://idsolns.getgrist.com/grist-plugin-api.js"></script>
+<style>
+  :root{
+    --navy:#14304F; --slate:#5B6B7B; --teal:#1F8A7A; --gold:#D6A029;
+    --red:#B4433A; --bg:#F7F9FA; --surface:#FFFFFF; --line:#E2E8ED;
+    --ink:#1B2733; --muted:#7A8794;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+    font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  button{font:inherit;cursor:pointer}
+  .wrap{width:100%;padding:12px 18px 40px}
+
+  .top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  .top h1{font-size:15px;font-weight:650;letter-spacing:.02em;margin:0;color:var(--navy);
+    text-transform:uppercase}
+  .spacer{flex:1}
+  .btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);
+    padding:6px 11px;border-radius:6px}
+  .btn:hover{border-color:var(--slate)}
+  .btn-sm{padding:3px 8px;font-size:12px}
+  .toggle{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--slate);
+    user-select:none;cursor:pointer}
+
+  .bar{display:flex;align-items:center;gap:4px;border-bottom:1px solid var(--line);
+    margin-bottom:12px;flex-wrap:wrap}
+  .tab{border:0;background:none;padding:9px 12px;color:var(--muted);font-weight:600;
+    border-bottom:2px solid transparent;margin-bottom:-1px}
+  .tab.on{color:var(--navy);border-bottom-color:var(--gold)}
+  .tab .n{font-variant-numeric:tabular-nums;font-weight:700;margin-left:5px;
+    background:#EDF1F4;color:var(--slate);border-radius:9px;padding:1px 7px;font-size:12px}
+  .tab.on .n{background:var(--navy);color:#fff}
+  #search{margin-left:auto;margin-bottom:6px;padding:6px 9px;border:1px solid var(--line);
+    border-radius:6px;width:220px;font:inherit;background:var(--surface)}
+
+  .hint{font-size:12.5px;color:var(--muted);margin:0 0 12px}
+
+  .grp{background:var(--surface);border:1px solid var(--line);border-radius:8px;
+    margin-bottom:8px;overflow:hidden}
+  .ghead{display:flex;align-items:center;gap:9px;padding:9px 12px;background:#FBFCFD;
+    border-bottom:1px solid var(--line)}
+  .fname{font-weight:650;color:var(--navy)}
+  .cnt{font-variant-numeric:tabular-nums;font-size:12px;font-weight:700;color:var(--slate);
+    background:#EDF1F4;border-radius:9px;padding:1px 8px}
+  .chip{border:1px solid var(--line);border-radius:20px;padding:1px 8px;font-size:11.5px;
+    color:var(--slate);background:#F4F7F9;white-space:nowrap}
+  .chip.lost{background:#FBECEA;border-color:#EBC4BF;color:#8C332B;font-weight:600}
+  .chip.temp{background:#FDF3DC;border-color:#EBD9A8;color:#7A5608;font-weight:600}
+  .chip.orphan{background:#F0E9F7;border-color:#D5C4E8;color:#5B3D85;font-weight:600}
+  .chip.pri{background:#E6EFFB;border-color:#B3CDEC;color:#12457F;font-weight:600}
+  .chip.bak{background:#EEF1F4;border-color:#D3DBE2;color:#4A5966}
+  ul.people{list-style:none;margin:0;padding:4px 12px 8px}
+  ul.people li{display:flex;align-items:center;gap:8px;padding:4px 0}
+  .pname{font-weight:500}
+  .empty{text-align:center;padding:44px 20px;color:var(--muted);background:var(--surface);
+    border:1px dashed var(--line);border-radius:8px}
+  .empty b{display:block;color:var(--ink);margin-bottom:4px}
+  #toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--navy);
+    color:#fff;padding:9px 15px;border-radius:7px;font-size:13px;z-index:20;
+    box-shadow:0 8px 22px rgba(0,0,0,.25)}
+  #toast[hidden]{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>Coverage Reconciliation</h1>
+    <span class="spacer"></span>
+    <label class="toggle"><input type="checkbox" id="incLost"> Include Lost facilities</label>
+  </div>
+
+  <div class="bar">
+    <button class="tab on" data-tab="toFacility">Missing from Facility <span class="n" id="cA">0</span></button>
+    <button class="tab" data-tab="toEmr">Missing from EMR Access <span class="n" id="cB">0</span></button>
+    <input id="search" type="text" placeholder="Search facility or practitioner…" autocomplete="off">
+  </div>
+
+  <p class="hint" id="hint"></p>
+  <div id="list"></div>
+</div>
+<div id="toast" hidden></div>
+
+<script>
+/* =====================================================================
+   Coverage Reconciliation — Grist custom widget (read-only)
+
+   Compares practitioner/facility pairs between two tables:
+     EMR Access : one row per practitioner + facility credential
+     Facility   : Primary_Practitioner + the four backup slots
+
+   Nothing is written back. Column and table IDs are discovered at runtime
+   by pattern, since Grist rewrites labels like "1st_Backup" into IDs that
+   can't start with a digit.
+   ===================================================================== */
+
+const FAC_TABLE_HINTS = [/^facility$/i, /^facilities$/i, /facility/i];
+const EMR_TABLE_HINTS = [/^emr[_ ]?access$/i, /emr/i];
+
+let pairs = {toFacility:[], toEmr:[]};
+let tab = 'toFacility', query = '', incLost = false, loaded = false;
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const val = v => Array.isArray(v) ? '' : (v ?? '');   // Grist error/censored cells
+
+function rows(columnar){
+  const ids = columnar.id || [];
+  return ids.map((id,i) => {
+    const r = {id};
+    for (const k in columnar) if (k !== 'id') r[k] = columnar[k][i];
+    return r;
+  });
+}
+function toast(msg){
+  const t = $('#toast'); t.textContent = msg; t.hidden = false;
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, 2600);
+}
+function findKey(keys, patterns){
+  for (const p of patterns){ const k = keys.find(k => p.test(k)); if (k) return k; }
+  return null;
+}
+function splitNames(v){
+  return String(val(v)).split(',').map(x => x.trim()).filter(Boolean);
+}
+
+/* ---------- boot ---------- */
+grist.ready({requiredAccess:'full'});
+grist.onRecords(() => load());
+load();
+
+async function pickTable(hints){
+  let names = [];
+  try { names = await grist.docApi.listTables(); } catch(e){}
+  for (const h of hints){ const n = names.find(n => h.test(n)); if (n) return n; }
+  return null;
+}
+
+async function load(){
+  try {
+    const facName = await pickTable(FAC_TABLE_HINTS);
+    const emrName = await pickTable(EMR_TABLE_HINTS);
+    if (!facName || !emrName) throw new Error('table not found');
+
+    const fac = rows(await grist.docApi.fetchTable(facName));
+    const emr = rows(await grist.docApi.fetchTable(emrName));
+    if (!fac.length || !emr.length) throw new Error('empty table');
+    build(fac, emr);
+    loaded = true;
+  } catch(e){
+    $('#list').innerHTML = `<div class="empty"><b>Can't read both tables</b>
+      This widget needs Full document access and tables named like
+      <code>Facility</code> and <code>EMR_Access</code>.<br>${esc(e.message||e)}</div>`;
+    return;
+  }
+  render();
+}
+
+function build(fac, emr){
+  const fk = Object.keys(fac[0]), ek = Object.keys(emr[0]);
+
+  const fFacName = findKey(fk, [/^facility[_ ]?name$/i, /facility[_ ]?name/i, /^name$/i]);
+  const fStatus  = findKey(fk, [/facility[_ ]?status/i, /^status$/i]);
+  const fPrimary = findKey(fk, [/primary.*pract/i, /pract.*primary/i]);
+  const fBackups = fk.filter(k => /backup/i.test(k) && !/billing/i.test(k)).sort();
+
+  const eFacName = findKey(ek, [/^facility[_ ]?name$/i, /facility[_ ]?name/i]);
+  const ePrac    = findKey(ek, [/practitioner[_ ]?name/i, /^practitioner$/i]);
+  const eCover   = findKey(ek, [/coverage[_ ]?type/i]);
+
+  // facility table: pair -> role
+  const status = {}, fPairs = new Map();
+  for (const r of fac){
+    const f = String(val(r[fFacName])).trim();
+    if (!f) continue;
+    status[f] = String(val(r[fStatus])).trim() || 'Active';
+    if (fPrimary) for (const p of splitNames(r[fPrimary])) fPairs.set(f+'||'+p, 'Primary');
+    for (const c of fBackups)
+      for (const p of splitNames(r[c]))
+        if (!fPairs.has(f+'||'+p)) fPairs.set(f+'||'+p, 'Backup');
+  }
+
+  // emr table: pair -> role (Primary wins if a pair appears twice)
+  const ePairs = new Map();
+  for (const r of emr){
+    const f = String(val(r[eFacName])).trim();
+    const p = String(val(r[ePrac])).trim();
+    if (!f || !p) continue;
+    const role = (String(val(r[eCover])).trim() || 'Backup');
+    if (ePairs.get(f+'||'+p) !== 'Primary') ePairs.set(f+'||'+p, role);
+  }
+
+  const mk = (key, role, src) => {
+    const [facility, person] = key.split('||');
+    return {facility, person, role,
+            status: status[facility] || 'Not in Facility table', src};
+  };
+  pairs.toFacility = [...ePairs].filter(([k]) => !fPairs.has(k)).map(([k,v]) => mk(k,v));
+  pairs.toEmr      = [...fPairs].filter(([k]) => !ePairs.has(k)).map(([k,v]) => mk(k,v));
+}
+
+/* ---------- render ---------- */
+function visible(list){
+  let s = incLost ? list : list.filter(x => x.status !== 'Lost');
+  if (query){
+    const q = query.toLowerCase();
+    s = s.filter(x => (x.facility + ' ' + x.person).toLowerCase().includes(q));
+  }
+  return s;
+}
+
+function render(){
+  if (!loaded) return;
+  $('#cA').textContent = visible(pairs.toFacility).length;
+  $('#cB').textContent = visible(pairs.toEmr).length;
+  document.querySelectorAll('.tab').forEach(b =>
+    b.classList.toggle('on', b.dataset.tab === tab));
+  $('#incLost').checked = incLost;
+
+  $('#hint').textContent = tab === 'toFacility'
+    ? 'Has an EMR credential but is not listed in the facility\u2019s Primary or Backup slots.'
+    : 'Listed in the facility\u2019s Primary or Backup slots but has no EMR credential on file.';
+
+  const set = visible(pairs[tab]);
+  const groups = new Map();
+  for (const x of set){
+    if (!groups.has(x.facility)) groups.set(x.facility, []);
+    groups.get(x.facility).push(x);
+  }
+  const sorted = [...groups.entries()].sort((a,b) => a[0].localeCompare(b[0]));
+
+  $('#list').innerHTML = sorted.length
+    ? sorted.map(([f, items]) => group(f, items)).join('')
+    : `<div class="empty"><b>${query ? 'No match' : 'Nothing to reconcile'}</b>${
+        query ? 'Try a shorter search.' : 'Both tables agree on this side.'}</div>`;
+}
+
+function statusChip(s){
+  if (s === 'Lost') return '<span class="chip lost">Lost</span>';
+  if (s === 'Temporary Coverage') return '<span class="chip temp">Temporary</span>';
+  if (s === 'Not in Facility table') return '<span class="chip orphan">Not in Facility table</span>';
+  return '';
+}
+
+function group(f, items){
+  items.sort((a,b) => (a.role === b.role ? a.person.localeCompare(b.person)
+                                         : a.role === 'Primary' ? -1 : 1));
+  const names = items.map(i => i.person).join(', ');
+  return `<div class="grp">
+    <div class="ghead">
+      <span class="fname">${esc(f)}</span>
+      ${statusChip(items[0].status)}
+      <span class="cnt">${items.length}</span>
+      <span class="spacer"></span>
+      <button class="btn btn-sm" data-copy="${esc(names)}">Copy names</button>
+    </div>
+    <ul class="people">${items.map(i => `<li>
+      <span class="chip ${i.role === 'Primary' ? 'pri' : 'bak'}">${esc(i.role)}</span>
+      <span class="pname">${esc(i.person)}</span>
+    </li>`).join('')}</ul>
+  </div>`;
+}
+
+/* ---------- events ---------- */
+document.querySelectorAll('.tab').forEach(b =>
+  b.onclick = () => { tab = b.dataset.tab; render(); });
+$('#search').oninput = e => { query = e.target.value.trim(); render(); };
+$('#incLost').onchange = e => { incLost = e.target.checked; render(); };
+$('#list').addEventListener('click', e => {
+  const b = e.target.closest('[data-copy]');
+  if (!b) return;
+  navigator.clipboard.writeText(b.dataset.copy)
+    .then(() => toast('Copied'))
+    .catch(() => toast('Copy blocked by the browser'));
+});
+</script>
+</body>
+</html>
