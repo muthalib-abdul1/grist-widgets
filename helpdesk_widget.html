@@ -34,6 +34,7 @@
     font-weight:600}
   .chip{border:1px solid var(--line);border-radius:20px;padding:1px 8px;font-size:11.5px;
     color:var(--slate);background:#F4F7F9;white-space:nowrap}
+  .chip.fac{background:#E6EFFB;border-color:#B3CDEC;color:#12457F;font-weight:600}
 
   /* ---------- tabs + search ---------- */
   .bar{display:flex;align-items:center;gap:4px;border-bottom:1px solid var(--line);
@@ -56,15 +57,25 @@
     letter-spacing:.04em;color:var(--navy)}
   .rail .age{margin-top:5px;font-size:10.5px;font-weight:600;letter-spacing:.04em;
     text-transform:uppercase;color:var(--muted)}
-  .rail.stale{background:#FDF7E8}
-  .rail.stale .age{color:#8A6410}
+  /* rail colour carries the stage: blue = new, amber = processing, green = done */
+  .rail.s-new{background:#E6EFFB;border-right-color:#C3D8F0}
+  .rail.s-new .tid{color:#12457F}
+  .rail.s-new .age{color:#3D6FA8}
+  .rail.s-wip{background:#FDF3DC;border-right-color:#EBD9A8}
+  .rail.s-wip .tid{color:#7A5608}
+  .rail.s-wip .age{color:#8A6410}
+  .rail.s-done{background:#E6F4EE;border-right-color:#B7DFCE}
+  .rail.s-done .tid{color:#14654E}
+  .rail.s-done .age{color:#1F7A5E}
+  .rail .age.overdue{color:var(--red);font-weight:700}
   .body{flex:1;min-width:0;padding:11px 13px}
   .text{margin:0;white-space:pre-wrap;overflow-wrap:break-word;font-size:14.5px;
     font-weight:500;color:#1B2733}
   .text.clamp{display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;
     overflow:hidden}
-  .meta{margin-top:8px;font-size:12px;color:var(--muted);display:flex;gap:8px;
+  .meta{margin-top:8px;font-size:12.5px;color:var(--ink);display:flex;gap:8px;
     flex-wrap:wrap;align-items:center}
+  .meta .sep{color:#B4BEC7}
   .res{margin-top:9px;padding:8px 10px;background:#F2F8F7;border-left:3px solid var(--teal);
     border-radius:0 5px 5px 0;font-size:13px}
   .res b{color:var(--teal)}
@@ -236,6 +247,9 @@ function toast(msg){
   clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, 3200);
 }
 function words(s){ return String(s||'').toLowerCase().match(/[a-z0-9]{4,}/g) || []; }
+// Grist represents error and censored cells as arrays, e.g. ['E','NameError'].
+// Render those as blank instead of leaking engine internals into the card.
+function val(v){ return Array.isArray(v) ? '' : (v ?? ''); }
 
 /* ---------- boot ---------- */
 grist.ready({requiredAccess:'full'});
@@ -286,8 +300,8 @@ function render(){
   if (query){
     const q = query.toLowerCase();
     set = set.filter(t => (
-      String(t.Description||'') + ' ' + facLabel(t.Facility) + ' ' +
-      String(t.Submitted_By_Name||'') + ' ' + String(t.Resolution_Notes||'') + ' ' + ticketNo(t)
+      val(t.Description) + ' ' + facLabel(t.Facility) + ' ' +
+      val(t.Submitted_By_Name) + ' ' + val(t.Resolution_Notes) + ' ' + ticketNo(t)
     ).toLowerCase().includes(q));
   }
   // open queue: oldest first, so nothing quietly rots at the bottom
@@ -305,29 +319,31 @@ function render(){
 
 function card(t){
   const fac   = facLabel(t.Facility);
-  const who   = t.Submitted_By_Name || t.Submitted_By || 'Unknown';
+  const who   = val(t.Submitted_By_Name) || val(t.Submitted_By) || 'Unknown';
   const st    = statusOf(t);
   const done  = st === S_DONE;
-  const text  = String(t.Description || '(no description)');
+  const text  = String(val(t.Description) || '(no description)');
   const isBig = text.length > 260 || (text.match(/\n/g) || []).length > 4;
   const open  = expanded.has(t.id);
   const stale = !done && (daysSince(t.Submitted_At) || 0) >= STALE_DAYS;
+  const railCls = done ? 's-done' : st === S_WIP ? 's-wip' : 's-new';
 
   return `<div class="card">
-    <div class="rail${stale ? ' stale' : ''}">
+    <div class="rail ${railCls}">
       <div class="tid">${ticketNo(t)}</div>
-      <div class="age">${done ? 'closed' : st === S_WIP ? 'in progress' : esc(ageLabel(t.Submitted_At))}</div>
+      <div class="age${stale ? ' overdue' : ''}">${
+        done ? 'closed' : st === S_WIP ? 'in progress' : esc(ageLabel(t.Submitted_At))}</div>
     </div>
     <div class="body">
       <p class="text${isBig && !open ? ' clamp' : ''}">${esc(text)}</p>
       ${isBig ? `<button class="btn-link" data-toggle="${t.id}">${open ? 'Show less' : 'Show more'}</button>` : ''}
       <div class="meta">
-        ${fac ? `<span class="chip">${esc(fac)}</span>` : ''}
-        <span>${esc(who)}</span><span>·</span><span>${fmtDate(t.Submitted_At)}</span>
+        ${fac ? `<span class="chip fac">${esc(fac)}</span>` : ''}
+        <span>${esc(who)}</span><span class="sep">·</span><span>${fmtDate(t.Submitted_At)}</span>
       </div>
       ${done ? `<div class="res">
-          <b>Resolved</b> ${fmtDate(t.Completed_At)}${t.Completed_By ? ' · ' + esc(t.Completed_By) : ''}
-          ${t.Resolution_Notes ? `<div style="margin-top:4px">${esc(t.Resolution_Notes)}</div>` : ''}
+          <b>Resolved</b> ${fmtDate(t.Completed_At)}${val(t.Completed_By) ? ' · ' + esc(val(t.Completed_By)) : ''}
+          ${val(t.Resolution_Notes) ? `<div style="margin-top:4px">${esc(val(t.Resolution_Notes))}</div>` : ''}
         </div>` : ''}
       ${admin ? `<div class="acts">
           ${st === S_NEW ? `<button class="btn btn-sm btn-primary" data-start="${t.id}">Start working</button>` : ''}
@@ -358,7 +374,7 @@ function checkDupes(){
   if (w.length < 2){ $('#dupe').hidden = true; return; }
   const hits = tickets.filter(t => statusOf(t) !== S_DONE)   // new + in progress
     .map(t => {
-      const tw = new Set(words(t.Description));
+      const tw = new Set(words(val(t.Description)));
       return {t, score:w.filter(x => tw.has(x)).length};
     })
     .filter(x => x.score >= 3)
@@ -366,7 +382,7 @@ function checkDupes(){
   if (!hits.length){ $('#dupe').hidden = true; return; }
   $('#dupe').hidden = false;
   $('#dupe').innerHTML = `<b>Already open?</b><ul>${hits.map(h =>
-    `<li>${ticketNo(h.t)} — ${esc(String(h.t.Description||'').slice(0,90))}…</li>`).join('')}</ul>`;
+    `<li>${ticketNo(h.t)} — ${esc(String(val(h.t.Description)).slice(0,90))}…</li>`).join('')}</ul>`;
 }
 
 async function saveNew(){
@@ -393,7 +409,7 @@ async function saveNew(){
 function openDone(id){
   const t = tickets.find(x => x.id === id); if (!t) return;
   doneId = id;
-  $('#dTicket').textContent = ticketNo(t) + ' — ' + String(t.Description||'').slice(0,120);
+  $('#dTicket').textContent = ticketNo(t) + ' — ' + String(val(t.Description)).slice(0,120);
   $('#dNotes').value = ''; $('#mDone').hidden = false; $('#dNotes').focus();
 }
 
