@@ -32,9 +32,6 @@
   .btn-sm{padding:4px 9px;font-size:12.5px}
   .btn-link{border:0;background:none;color:var(--teal);padding:2px 0;font-size:12.5px;
     font-weight:600}
-  .whoami{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
-  .whoami select,.whoami input{font:inherit;padding:4px 6px;border:1px solid var(--line);
-    border-radius:5px;background:var(--surface);color:var(--ink);max-width:190px}
   .chip{border:1px solid var(--line);border-radius:20px;padding:1px 8px;font-size:11.5px;
     color:var(--slate);background:#F4F7F9;white-space:nowrap}
 
@@ -117,7 +114,6 @@
   <div class="top">
     <h1>Week List Ticketing Portal</h1>
     <span class="spacer"></span>
-    <span class="whoami" id="who"></span>
     <button class="btn btn-primary" id="new">＋ Submit ticket</button>
   </div>
 
@@ -139,7 +135,7 @@
       <p class="err" id="nErr" hidden></p>
       <div id="dupe" class="warn" hidden></div>
       <div class="fld">
-        <label for="fDesc">Description? <span style="color:var(--red)">*</span></label>
+        <label for="fDesc">What do you need? <span style="color:var(--red)">*</span></label>
         <textarea id="fDesc" maxlength="4000" placeholder="Describe the problem: resident or facility, what you tried, any error message, and the dates affected."></textarea>
       </div>
       <div class="fld" id="facWrap" hidden>
@@ -178,20 +174,23 @@
 /* =====================================================================
    Week List Ticketing Portal — Grist custom widget
    Table: Tickets   |   Widget access: Full document access
-   Columns used: Description, Facility, Status, Submitted_By,
-                 Submitted_By_Name, Submitted_At, Completed_By,
-                 Completed_At, Resolution_Notes, Email_Sent
+
+   The widget only ever writes Description, Facility, Status and
+   Resolution_Notes. Grist fills in Submitted_By, Submitted_By_Name,
+   Submitted_At, Completed_By and Completed_At via trigger formulas, so
+   authorship is stamped server-side and cannot be faked from here.
+
+   Admin buttons appear only if the one-row Admin_Check table is readable,
+   which Access Rules decide per user. No table, no admin buttons.
    ===================================================================== */
 
 const TABLE        = 'Tickets';
 const S_NEW = 'New Request', S_WIP = 'Processing', S_DONE = 'Completed';
+const ADMIN_TABLE  = 'Admin_Check';            // one row, gated by Access Rules
 const NOTIFY_URL   = '';                       // <-- paste Apps Script /exec URL
-const ADMIN_EMAILS = ['mabdul@idsolns.com'];   // <-- lowercase
-const ADMIN_TITLES = ['admin','director','it','operations manager','office manager'];
 const STALE_DAYS   = 7;                        // rail turns amber past this
-const LS_KEY       = 'ids_helpdesk_user';
 
-let tickets = [], employees = [], facilities = [], me = null;
+let tickets = [], facilities = [], admin = false;
 let tab = S_NEW, query = '', doneId = null, expanded = new Set();
 
 /* ---------- helpers ---------- */
@@ -252,59 +251,16 @@ async function load(){
       access level is set to Full document access.</div>`;
     return;
   }
-  if (!employees.length) {
-    try { employees = rows(await grist.docApi.fetchTable('Employee')); } catch(e){}
-  }
   if (!facilities.length) {
     try { facilities = rows(await grist.docApi.fetchTable('Facility')); } catch(e){}
   }
-  restoreMe();
+  // Admin_Check holds a single row that Access Rules hide from non-admins.
+  // Getting a row back is the permission check; an empty result means no.
+  try {
+    const a = await grist.docApi.fetchTable(ADMIN_TABLE);
+    admin = (a.id || []).length > 0;
+  } catch(e){ admin = false; }
   render();
-}
-
-/* ---------- identity (UI convenience; Access Rules do the enforcing) ---------- */
-function empName(r){ return pick(r,['Name','Full_Name','Employee_Name','Employee','Display_Name']); }
-function empMail(r){ return pick(r,['Email','Work_Email','Email_Address','Login']); }
-function empTitle(r){ return pick(r,['Job_Title','Title','Role','Position','UserJobTitle']); }
-
-function isAdmin(u){
-  if (!u) return false;
-  if (ADMIN_EMAILS.includes(String(u.email||'').toLowerCase())) return true;
-  const t = String(u.title||'').toLowerCase();
-  return ADMIN_TITLES.some(x => t.includes(x));
-}
-function restoreMe(){
-  if (me) return;
-  try { me = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch(e){ me = null; }
-}
-function saveMe(u){
-  me = u;
-  try { localStorage.setItem(LS_KEY, JSON.stringify(u)); } catch(e){}
-  render();
-}
-function renderWho(){
-  const el = $('#who');
-  const list = employees
-    .map(r => ({name:empName(r), email:empMail(r), title:empTitle(r)}))
-    .filter(r => r.name)
-    .sort((a,b) => a.name.localeCompare(b.name));
-
-  if (!list.length){
-    el.innerHTML = `You: <input id="meName" type="text" placeholder="Your name"
-      value="${esc(me?.name || '')}">`;
-    $('#meName').onchange = e => saveMe({name:e.target.value.trim(), email:'', title:''});
-    return;
-  }
-  el.innerHTML = `You:
-    <select id="meSel">
-      <option value="">Choose your name…</option>
-      ${list.map(r => `<option value="${esc(r.name)}"
-        ${me && me.name === r.name ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}
-    </select>${isAdmin(me) ? ' <span class="chip">admin</span>' : ''}`;
-  $('#meSel').onchange = e => {
-    const r = list.find(x => x.name === e.target.value);
-    saveMe(r ? {name:r.name, email:r.email, title:r.title} : null);
-  };
 }
 
 /* ---------- render ---------- */
@@ -319,7 +275,6 @@ function statusOf(t){
 }
 
 function render(){
-  renderWho();
   const byStatus = st => tickets.filter(t => statusOf(t) === st);
   $('#cNew').textContent  = byStatus(S_NEW).length;
   $('#cWip').textContent  = byStatus(S_WIP).length;
@@ -340,8 +295,7 @@ function render(){
     ? (b.Completed_At||0) - (a.Completed_At||0)
     : (a.Submitted_At||0) - (b.Submitted_At||0));
 
-  const admin = isAdmin(me);
-  $('#list').innerHTML = set.length ? set.map(t => card(t, admin)).join('')
+  $('#list').innerHTML = set.length ? set.map(t => card(t)).join('')
     : `<div class="empty">${
         query ? `<b>No match for “${esc(query)}”</b>This tab only. Check the other tabs too.`
         : tab === S_DONE ? '<b>Nothing completed yet</b>Resolved tickets land here.'
@@ -349,7 +303,7 @@ function render(){
         : '<b>No new requests</b>Everything has been picked up. Submit one when something breaks.'}</div>`;
 }
 
-function card(t, admin){
+function card(t){
   const fac   = facLabel(t.Facility);
   const who   = t.Submitted_By_Name || t.Submitted_By || 'Unknown';
   const st    = statusOf(t);
@@ -418,13 +372,8 @@ function checkDupes(){
 async function saveNew(){
   const desc = $('#fDesc').value.trim();
   if (!desc){ $('#nErr').textContent = 'Describe what you need before submitting.'; $('#nErr').hidden = false; return; }
-  if (!me || !me.name){ $('#nErr').textContent = 'Choose your name at the top right so we know who to reply to.'; $('#nErr').hidden = false; return; }
-  const fields = {
-    Description: desc,
-    Status: S_NEW,
-    Submitted_By_Name: me.name,
-  };
-  if (me.email) fields.Submitted_By = me.email;
+  // Submitted_By / _By_Name / _At are trigger formulas — Grist stamps them.
+  const fields = { Description: desc, Status: S_NEW };
   const fac = Number($('#fFac').value || 0);
   if (fac) fields.Facility = fac;
 
@@ -455,8 +404,7 @@ async function markDone(){
     await grist.docApi.applyUserActions([['UpdateRecord', TABLE, doneId, {
       Status: S_DONE,
       Resolution_Notes: $('#dNotes').value.trim(),
-      Completed_By: (me && (me.email || me.name)) || '',
-      Completed_At: Math.floor(Date.now()/1000),
+      // Completed_By / Completed_At are trigger formulas on Status
     }]]);
     $('#mDone').hidden = true;
     notify(doneId);
@@ -464,14 +412,14 @@ async function markDone(){
     load();
   } catch(e){
     alert('Could not update the ticket: ' + (e.message || e) +
-      '\n\nIf you are not an admin, Access Rules block this change.');
+      '\n\nAccess Rules may be blocking this change.');
   } finally { $('#doDone').disabled = false; }
 }
 
 async function reopen(id){
   try {
     await grist.docApi.applyUserActions([['UpdateRecord', TABLE, id, {
-      Status: S_WIP, Completed_At: null, Completed_By: '', Email_Sent: false
+      Status: S_WIP, Email_Sent: false   // trigger formulas clear Completed_At / _By
     }]]);
     toast('Reopened — back in Processing'); load();
   } catch(e){ alert('Could not reopen: ' + (e.message || e)); }
