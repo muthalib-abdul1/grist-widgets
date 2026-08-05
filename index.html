@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Submit Ticket</title>
+<script src="https://idsolns.getgrist.com/grist-plugin-api.js"></script>
+<style>
+  :root{
+    --navy:#14304F; --slate:#5B6B7B; --teal:#1F8A7A; --gold:#D6A029;
+    --red:#B4433A; --bg:#F7F9FA; --surface:#FFFFFF; --line:#E2E8ED;
+    --ink:#1B2733; --muted:#7A8794;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+    font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  button{font:inherit;cursor:pointer}
+  .wrap{max-width:940px;margin:0 auto;padding:12px 14px 40px}
+
+  /* ---------- header ---------- */
+  .top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  .top h1{font-size:15px;font-weight:650;letter-spacing:.02em;margin:0;color:var(--navy);
+    text-transform:uppercase}
+  .spacer{flex:1}
+  .btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);
+    padding:7px 12px;border-radius:6px}
+  .btn:hover{border-color:var(--slate)}
+  .btn-primary{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:600}
+  .btn-primary:hover{background:#0E2439}
+  .btn-teal{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:600}
+  .btn-teal:hover{background:#186E62}
+  .btn-sm{padding:4px 9px;font-size:12.5px}
+  .btn-link{border:0;background:none;color:var(--teal);padding:2px 0;font-size:12.5px;
+    font-weight:600}
+  .whoami{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
+  .whoami select,.whoami input{font:inherit;padding:4px 6px;border:1px solid var(--line);
+    border-radius:5px;background:var(--surface);color:var(--ink);max-width:190px}
+  .chip{border:1px solid var(--line);border-radius:20px;padding:1px 8px;font-size:11.5px;
+    color:var(--slate);background:#F4F7F9;white-space:nowrap}
+
+  /* ---------- tabs + search ---------- */
+  .bar{display:flex;align-items:center;gap:4px;border-bottom:1px solid var(--line);
+    margin-bottom:12px;flex-wrap:wrap}
+  .tab{border:0;background:none;padding:9px 12px;color:var(--muted);font-weight:600;
+    border-bottom:2px solid transparent;margin-bottom:-1px}
+  .tab.on{color:var(--navy);border-bottom-color:var(--gold)}
+  .tab .n{font-variant-numeric:tabular-nums;font-weight:700;margin-left:5px;
+    background:#EDF1F4;color:var(--slate);border-radius:9px;padding:1px 7px;font-size:12px}
+  .tab.on .n{background:var(--navy);color:#fff}
+  #search{margin-left:auto;margin-bottom:6px;padding:6px 9px;border:1px solid var(--line);
+    border-radius:6px;width:200px;font:inherit;background:var(--surface)}
+
+  /* ---------- ticket cards ---------- */
+  .card{display:flex;background:var(--surface);border:1px solid var(--line);
+    border-radius:8px;margin-bottom:8px;overflow:hidden}
+  .rail{width:82px;flex:0 0 82px;padding:11px 8px;border-right:1px solid var(--line);
+    text-align:center;background:#FBFCFD}
+  .rail .tid{font:600 11.5px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    letter-spacing:.04em;color:var(--navy)}
+  .rail .age{margin-top:5px;font-size:10.5px;font-weight:600;letter-spacing:.04em;
+    text-transform:uppercase;color:var(--muted)}
+  .rail.stale{background:#FDF7E8}
+  .rail.stale .age{color:#8A6410}
+  .body{flex:1;min-width:0;padding:11px 13px}
+  .text{margin:0;white-space:pre-wrap;overflow-wrap:break-word;font-size:14.5px;
+    font-weight:500;color:#1B2733}
+  .text.clamp{display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;
+    overflow:hidden}
+  .meta{margin-top:8px;font-size:12px;color:var(--muted);display:flex;gap:8px;
+    flex-wrap:wrap;align-items:center}
+  .res{margin-top:9px;padding:8px 10px;background:#F2F8F7;border-left:3px solid var(--teal);
+    border-radius:0 5px 5px 0;font-size:13px}
+  .res b{color:var(--teal)}
+  .acts{margin-top:9px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .empty{text-align:center;padding:44px 20px;color:var(--muted);background:var(--surface);
+    border:1px dashed var(--line);border-radius:8px}
+  .empty b{display:block;color:var(--ink);margin-bottom:4px}
+
+  /* ---------- modal ---------- */
+  .veil{position:fixed;inset:0;background:rgba(20,48,79,.42);display:flex;
+    align-items:flex-start;justify-content:center;padding:24px 14px;overflow:auto;z-index:9}
+  .veil[hidden]{display:none}
+  .sheet{background:var(--surface);border-radius:10px;width:100%;max-width:520px;
+    box-shadow:0 18px 44px rgba(20,48,79,.28)}
+  .sheet h2{margin:0;padding:14px 16px;font-size:14px;letter-spacing:.02em;
+    text-transform:uppercase;color:var(--navy);border-bottom:1px solid var(--line)}
+  .sheet .in{padding:14px 16px}
+  .sheet .ft{padding:12px 16px;border-top:1px solid var(--line);display:flex;
+    justify-content:flex-end;gap:8px}
+  label{display:block;font-size:12px;font-weight:650;color:var(--slate);
+    margin:0 0 4px;letter-spacing:.02em}
+  .fld{margin-bottom:12px}
+  input[type=text],select,textarea{width:100%;font:inherit;padding:8px 9px;
+    border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink)}
+  textarea{resize:vertical;min-height:120px}
+  input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--teal);
+    outline-offset:1px}
+  .warn{background:#FDF7E8;border:1px solid #F0DFB0;border-radius:6px;padding:8px 10px;
+    font-size:12.5px;margin-bottom:12px}
+  .warn b{color:#8A6410}
+  .warn ul{margin:5px 0 0 16px;padding:0}
+  .err{color:var(--red);font-size:12.5px;margin:0 0 10px}
+  .note{font-size:12px;color:var(--muted);margin:2px 0 0}
+
+  /* ---------- toast ---------- */
+  #toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);
+    background:var(--navy);color:#fff;padding:9px 15px;border-radius:7px;font-size:13px;
+    box-shadow:0 8px 22px rgba(0,0,0,.25);z-index:20}
+  #toast[hidden]{display:none}
+  @media (prefers-reduced-motion:no-preference){
+    .card{transition:border-color .15s}.card:hover{border-color:#CBD5DD}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>IDS Help Desk</h1>
+    <button class="btn btn-primary" id="new">＋ Submit ticket</button>
+    <span class="spacer"></span>
+    <span class="whoami" id="who"></span>
+  </div>
+
+  <div class="bar">
+    <button class="tab on" data-tab="New Request">New <span class="n" id="cNew">0</span></button>
+    <button class="tab" data-tab="Processing">Processing <span class="n" id="cWip">0</span></button>
+    <button class="tab" data-tab="Completed">Completed <span class="n" id="cDone">0</span></button>
+    <input id="search" type="text" placeholder="Search tickets…" autocomplete="off">
+  </div>
+
+  <div id="list"></div>
+</div>
+
+<!-- new ticket -->
+<div class="veil" id="mNew" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="mNewT">
+    <h2 id="mNewT">New ticket</h2>
+    <div class="in">
+      <p class="err" id="nErr" hidden></p>
+      <div id="dupe" class="warn" hidden></div>
+      <div class="fld">
+        <label for="fDesc">What do you need? <span style="color:var(--red)">*</span></label>
+        <textarea id="fDesc" maxlength="4000" placeholder="Describe the problem: resident or facility, what you tried, any error message, and the dates affected."></textarea>
+      </div>
+      <div class="fld" id="facWrap" hidden>
+        <label for="fFac">Facility (optional)</label>
+        <select id="fFac"></select>
+      </div>
+    </div>
+    <div class="ft">
+      <button class="btn" data-close>Cancel</button>
+      <button class="btn btn-primary" id="save">Submit ticket</button>
+    </div>
+  </div>
+</div>
+
+<!-- complete ticket -->
+<div class="veil" id="mDone" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="mDoneT">
+    <h2 id="mDoneT">Mark completed</h2>
+    <div class="in">
+      <p class="note" id="dTicket" style="margin-bottom:12px"></p>
+      <div class="fld">
+        <label for="dNotes">How was it resolved?</label>
+        <textarea id="dNotes" maxlength="2000" placeholder="This goes into the email sent to the person who submitted it."></textarea>
+      </div>
+    </div>
+    <div class="ft">
+      <button class="btn" data-close>Cancel</button>
+      <button class="btn btn-teal" id="doDone">Mark completed</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" hidden></div>
+
+<script>
+/* =====================================================================
+   IDS Help Desk — Grist custom widget
+   Table: Tickets   |   Widget access: Full document access
+   Columns used: Description, Facility, Status, Submitted_By,
+                 Submitted_By_Name, Submitted_At, Completed_By,
+                 Completed_At, Resolution_Notes, Email_Sent
+   ===================================================================== */
+
+const TABLE        = 'Tickets';
+const S_NEW = 'New Request', S_WIP = 'Processing', S_DONE = 'Completed';
+const NOTIFY_URL   = '';                       // <-- paste Apps Script /exec URL
+const ADMIN_EMAILS = ['mabdul@idsolns.com'];   // <-- lowercase
+const ADMIN_TITLES = ['admin','director','it','operations manager','office manager'];
+const STALE_DAYS   = 7;                        // rail turns amber past this
+const LS_KEY       = 'ids_helpdesk_user';
+
+let tickets = [], employees = [], facilities = [], me = null;
+let tab = S_NEW, query = '', doneId = null, expanded = new Set();
+
+/* ---------- helpers ---------- */
+const $  = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// tolerate column-name drift in Employee / Facility
+function pick(row, names){
+  for (const n of names) {
+    for (const k of Object.keys(row)) {
+      if (k.toLowerCase() === n.toLowerCase() && row[k] !== null && row[k] !== '') return row[k];
+    }
+  }
+  return '';
+}
+function rows(columnar){
+  const ids = columnar.id || [];
+  return ids.map((id,i) => {
+    const r = {id};
+    for (const k in columnar) if (k !== 'id') r[k] = columnar[k][i];
+    return r;
+  });
+}
+function fmtDate(sec){
+  if (!sec) return '';
+  const d = new Date(sec * 1000);
+  return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}) +
+         ' ' + d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+}
+function daysSince(sec){
+  if (!sec) return null;
+  return Math.floor((Date.now()/1000 - sec) / 86400);
+}
+function ageLabel(sec){
+  const d = daysSince(sec);
+  if (d === null) return '';
+  if (d <= 0) return 'today';
+  return d + 'd open';
+}
+function toast(msg){
+  const t = $('#toast'); t.textContent = msg; t.hidden = false;
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, 3200);
+}
+function words(s){ return String(s||'').toLowerCase().match(/[a-z0-9]{4,}/g) || []; }
+
+/* ---------- boot ---------- */
+grist.ready({requiredAccess:'full'});
+grist.onRecords(() => load());          // fires whenever Tickets data changes
+load();                                 // and once on first paint
+
+async function load(){
+  try {
+    tickets = rows(await grist.docApi.fetchTable(TABLE));
+  } catch (e) {
+    $('#list').innerHTML = `<div class="empty"><b>Can't read the Tickets table</b>
+      Check that the table ID is <code>${TABLE}</code> and that this widget's
+      access level is set to Full document access.</div>`;
+    return;
+  }
+  if (!employees.length) {
+    try { employees = rows(await grist.docApi.fetchTable('Employee')); } catch(e){}
+  }
+  if (!facilities.length) {
+    try { facilities = rows(await grist.docApi.fetchTable('Facility')); } catch(e){}
+  }
+  restoreMe();
+  render();
+}
+
+/* ---------- identity (UI convenience; Access Rules do the enforcing) ---------- */
+function empName(r){ return pick(r,['Name','Full_Name','Employee_Name','Employee','Display_Name']); }
+function empMail(r){ return pick(r,['Email','Work_Email','Email_Address','Login']); }
+function empTitle(r){ return pick(r,['Job_Title','Title','Role','Position','UserJobTitle']); }
+
+function isAdmin(u){
+  if (!u) return false;
+  if (ADMIN_EMAILS.includes(String(u.email||'').toLowerCase())) return true;
+  const t = String(u.title||'').toLowerCase();
+  return ADMIN_TITLES.some(x => t.includes(x));
+}
+function restoreMe(){
+  if (me) return;
+  try { me = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch(e){ me = null; }
+}
+function saveMe(u){
+  me = u;
+  try { localStorage.setItem(LS_KEY, JSON.stringify(u)); } catch(e){}
+  render();
+}
+function renderWho(){
+  const el = $('#who');
+  const list = employees
+    .map(r => ({name:empName(r), email:empMail(r), title:empTitle(r)}))
+    .filter(r => r.name)
+    .sort((a,b) => a.name.localeCompare(b.name));
+
+  if (!list.length){
+    el.innerHTML = `You: <input id="meName" type="text" placeholder="Your name"
+      value="${esc(me?.name || '')}">`;
+    $('#meName').onchange = e => saveMe({name:e.target.value.trim(), email:'', title:''});
+    return;
+  }
+  el.innerHTML = `You:
+    <select id="meSel">
+      <option value="">Choose your name…</option>
+      ${list.map(r => `<option value="${esc(r.name)}"
+        ${me && me.name === r.name ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}
+    </select>${isAdmin(me) ? ' <span class="chip">admin</span>' : ''}`;
+  $('#meSel').onchange = e => {
+    const r = list.find(x => x.name === e.target.value);
+    saveMe(r ? {name:r.name, email:r.email, title:r.title} : null);
+  };
+}
+
+/* ---------- render ---------- */
+function ticketNo(t){ return 'IDS-' + String(t.id).padStart(4,'0'); }
+function facLabel(id){
+  const f = facilities.find(x => x.id === id);
+  return f ? pick(f,['Facility_Name','Name','Facility','Location']) : '';
+}
+function statusOf(t){
+  const s = String(t.Status || '').trim();
+  return s === S_WIP || s === S_DONE ? s : S_NEW;   // anything unrecognised reads as new
+}
+
+function render(){
+  renderWho();
+  const byStatus = st => tickets.filter(t => statusOf(t) === st);
+  $('#cNew').textContent  = byStatus(S_NEW).length;
+  $('#cWip').textContent  = byStatus(S_WIP).length;
+  $('#cDone').textContent = byStatus(S_DONE).length;
+  document.querySelectorAll('.tab').forEach(b =>
+    b.classList.toggle('on', b.dataset.tab === tab));
+
+  let set = byStatus(tab);
+  if (query){
+    const q = query.toLowerCase();
+    set = set.filter(t => (
+      String(t.Description||'') + ' ' + facLabel(t.Facility) + ' ' +
+      String(t.Submitted_By_Name||'') + ' ' + String(t.Resolution_Notes||'') + ' ' + ticketNo(t)
+    ).toLowerCase().includes(q));
+  }
+  // open queue: oldest first, so nothing quietly rots at the bottom
+  set = set.slice().sort((a,b) => tab === S_DONE
+    ? (b.Completed_At||0) - (a.Completed_At||0)
+    : (a.Submitted_At||0) - (b.Submitted_At||0));
+
+  const admin = isAdmin(me);
+  $('#list').innerHTML = set.length ? set.map(t => card(t, admin)).join('')
+    : `<div class="empty">${
+        query ? `<b>No match for “${esc(query)}”</b>This tab only. Check the other tabs too.`
+        : tab === S_DONE ? '<b>Nothing completed yet</b>Resolved tickets land here.'
+        : tab === S_WIP  ? '<b>Nothing in progress</b>Tickets you start working on move here.'
+        : '<b>No new requests</b>Everything has been picked up. Submit one when something breaks.'}</div>`;
+}
+
+function card(t, admin){
+  const fac   = facLabel(t.Facility);
+  const who   = t.Submitted_By_Name || t.Submitted_By || 'Unknown';
+  const st    = statusOf(t);
+  const done  = st === S_DONE;
+  const text  = String(t.Description || '(no description)');
+  const isBig = text.length > 260 || (text.match(/\n/g) || []).length > 4;
+  const open  = expanded.has(t.id);
+  const stale = !done && (daysSince(t.Submitted_At) || 0) >= STALE_DAYS;
+
+  return `<div class="card">
+    <div class="rail${stale ? ' stale' : ''}">
+      <div class="tid">${ticketNo(t)}</div>
+      <div class="age">${done ? 'closed' : st === S_WIP ? 'in progress' : esc(ageLabel(t.Submitted_At))}</div>
+    </div>
+    <div class="body">
+      <p class="text${isBig && !open ? ' clamp' : ''}">${esc(text)}</p>
+      ${isBig ? `<button class="btn-link" data-toggle="${t.id}">${open ? 'Show less' : 'Show more'}</button>` : ''}
+      <div class="meta">
+        ${fac ? `<span class="chip">${esc(fac)}</span>` : ''}
+        <span>${esc(who)}</span><span>·</span><span>${fmtDate(t.Submitted_At)}</span>
+      </div>
+      ${done ? `<div class="res">
+          <b>Resolved</b> ${fmtDate(t.Completed_At)}${t.Completed_By ? ' · ' + esc(t.Completed_By) : ''}
+          ${t.Resolution_Notes ? `<div style="margin-top:4px">${esc(t.Resolution_Notes)}</div>` : ''}
+        </div>` : ''}
+      ${admin ? `<div class="acts">
+          ${st === S_NEW ? `<button class="btn btn-sm btn-primary" data-start="${t.id}">Start working</button>` : ''}
+          ${done ? `<button class="btn btn-sm" data-reopen="${t.id}">Reopen</button>`
+                 : `<button class="btn btn-sm btn-teal" data-done="${t.id}">Mark completed</button>`}
+        </div>` : ''}
+    </div>
+  </div>`;
+}
+
+/* ---------- new ticket ---------- */
+function openNew(){
+  if (facilities.length){
+    const opts = facilities
+      .map(f => ({id:f.id, name:pick(f,['Facility_Name','Name','Facility','Location'])}))
+      .filter(f => f.name).sort((a,b) => a.name.localeCompare(b.name));
+    $('#fFac').innerHTML = `<option value="0">—</option>` +
+      opts.map(f => `<option value="${f.id}">${esc(f.name)}</option>`).join('');
+    $('#facWrap').hidden = !opts.length;
+  }
+  $('#fDesc').value = '';
+  $('#nErr').hidden = true; $('#dupe').hidden = true;
+  $('#mNew').hidden = false; $('#fDesc').focus();
+}
+
+function checkDupes(){
+  const w = words($('#fDesc').value);
+  if (w.length < 2){ $('#dupe').hidden = true; return; }
+  const hits = tickets.filter(t => statusOf(t) !== S_DONE)   // new + in progress
+    .map(t => {
+      const tw = new Set(words(t.Description));
+      return {t, score:w.filter(x => tw.has(x)).length};
+    })
+    .filter(x => x.score >= 3)
+    .sort((a,b) => b.score - a.score).slice(0,3);
+  if (!hits.length){ $('#dupe').hidden = true; return; }
+  $('#dupe').hidden = false;
+  $('#dupe').innerHTML = `<b>Already open?</b><ul>${hits.map(h =>
+    `<li>${ticketNo(h.t)} — ${esc(String(h.t.Description||'').slice(0,90))}…</li>`).join('')}</ul>`;
+}
+
+async function saveNew(){
+  const desc = $('#fDesc').value.trim();
+  if (!desc){ $('#nErr').textContent = 'Describe what you need before submitting.'; $('#nErr').hidden = false; return; }
+  if (!me || !me.name){ $('#nErr').textContent = 'Choose your name at the top right so we know who to reply to.'; $('#nErr').hidden = false; return; }
+  const fields = {
+    Description: desc,
+    Status: S_NEW,
+    Submitted_By_Name: me.name,
+  };
+  if (me.email) fields.Submitted_By = me.email;
+  const fac = Number($('#fFac').value || 0);
+  if (fac) fields.Facility = fac;
+
+  $('#save').disabled = true;
+  try {
+    await grist.docApi.applyUserActions([['AddRecord', TABLE, null, fields]]);
+    $('#mNew').hidden = true;
+    toast('Ticket submitted');
+    load();
+  } catch(e){
+    $('#nErr').textContent = 'Grist rejected the save: ' + (e.message || e);
+    $('#nErr').hidden = false;
+  } finally { $('#save').disabled = false; }
+}
+
+/* ---------- complete / reopen ---------- */
+function openDone(id){
+  const t = tickets.find(x => x.id === id); if (!t) return;
+  doneId = id;
+  $('#dTicket').textContent = ticketNo(t) + ' — ' + String(t.Description||'').slice(0,120);
+  $('#dNotes').value = ''; $('#mDone').hidden = false; $('#dNotes').focus();
+}
+
+async function markDone(){
+  const t = tickets.find(x => x.id === doneId); if (!t) return;
+  $('#doDone').disabled = true;
+  try {
+    await grist.docApi.applyUserActions([['UpdateRecord', TABLE, doneId, {
+      Status: S_DONE,
+      Resolution_Notes: $('#dNotes').value.trim(),
+      Completed_By: (me && (me.email || me.name)) || '',
+      Completed_At: Math.floor(Date.now()/1000),
+    }]]);
+    $('#mDone').hidden = true;
+    notify(doneId);
+    toast('Marked completed');
+    load();
+  } catch(e){
+    alert('Could not update the ticket: ' + (e.message || e) +
+      '\n\nIf you are not an admin, Access Rules block this change.');
+  } finally { $('#doDone').disabled = false; }
+}
+
+async function reopen(id){
+  try {
+    await grist.docApi.applyUserActions([['UpdateRecord', TABLE, id, {
+      Status: S_WIP, Completed_At: null, Completed_By: '', Email_Sent: false
+    }]]);
+    toast('Reopened — back in Processing'); load();
+  } catch(e){ alert('Could not reopen: ' + (e.message || e)); }
+}
+
+async function startWork(id){
+  try {
+    await grist.docApi.applyUserActions([['UpdateRecord', TABLE, id, {Status: S_WIP}]]);
+    toast('Moved to Processing'); load();
+  } catch(e){ alert('Could not update the ticket: ' + (e.message || e)); }
+}
+
+// fire-and-forget email trigger; text/plain avoids a CORS preflight to Apps Script
+function notify(id){
+  if (!NOTIFY_URL) return;
+  fetch(NOTIFY_URL, {
+    method:'POST', mode:'no-cors',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({ticketId:id})
+  }).catch(() => {});
+}
+
+/* ---------- events ---------- */
+$('#new').onclick = openNew;
+$('#search').oninput = e => { query = e.target.value.trim(); render(); };
+$('#fDesc').addEventListener('input', checkDupes);
+$('#save').onclick = saveNew;
+$('#doDone').onclick = markDone;
+document.querySelectorAll('.tab').forEach(b =>
+  b.onclick = () => { tab = b.dataset.tab; render(); });
+document.querySelectorAll('[data-close]').forEach(b =>
+  b.onclick = e => e.target.closest('.veil').hidden = true);
+document.querySelectorAll('.veil').forEach(v =>
+  v.onclick = e => { if (e.target === v) v.hidden = true; });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.querySelectorAll('.veil').forEach(v => v.hidden = true);
+});
+$('#list').addEventListener('click', e => {
+  const d = e.target.closest('[data-done]');   if (d) return openDone(Number(d.dataset.done));
+  const r = e.target.closest('[data-reopen]'); if (r) return reopen(Number(r.dataset.reopen));
+  const s = e.target.closest('[data-start]');  if (s) return startWork(Number(s.dataset.start));
+  const x = e.target.closest('[data-toggle]');
+  if (x){
+    const id = Number(x.dataset.toggle);
+    expanded.has(id) ? expanded.delete(id) : expanded.add(id);
+    render();
+  }
+});
+</script>
+</body>
+</html>
