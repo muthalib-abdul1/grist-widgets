@@ -15,7 +15,7 @@
   html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
     font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
   button{font:inherit;cursor:pointer}
-  .wrap{max-width:940px;margin:0 auto;padding:12px 14px 40px}
+  .wrap{width:100%;padding:12px 18px 40px}
 
   /* ---------- header ---------- */
   .top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
@@ -54,7 +54,7 @@
   .rail{width:82px;flex:0 0 82px;padding:11px 8px;border-right:1px solid var(--line);
     text-align:center;background:#FBFCFD}
   .rail .tid{font:600 11.5px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-    letter-spacing:.04em;color:var(--navy)}
+    letter-spacing:.04em;color:var(--navy);white-space:nowrap}
   .rail .age{margin-top:5px;font-size:10.5px;font-weight:600;letter-spacing:.04em;
     text-transform:uppercase;color:var(--muted)}
   /* rail colour carries the stage: blue = new, amber = processing, green = done */
@@ -331,8 +331,7 @@ function card(t){
   return `<div class="card">
     <div class="rail ${railCls}">
       <div class="tid">${ticketNo(t)}</div>
-      <div class="age${stale ? ' overdue' : ''}">${
-        done ? 'closed' : st === S_WIP ? 'in progress' : esc(ageLabel(t.Submitted_At))}</div>
+      ${done ? '' : `<div class="age${stale ? ' overdue' : ''}">${esc(ageLabel(t.Submitted_At))}</div>`}
     </div>
     <div class="body">
       <p class="text${isBig && !open ? ' clamp' : ''}">${esc(text)}</p>
