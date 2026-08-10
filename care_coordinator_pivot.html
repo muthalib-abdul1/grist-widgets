@@ -144,8 +144,8 @@ tbody tr.total-row .cell-val.zero {
 
 <script>
   const ROUNDING_SKIP  = '❌';
-  const AUDIT_COMPLETE = 'Completed';
-
+  const NOTES_COMPLETE = 'Final Step - All Notes in Charge Capture';
+  
   let activeCC = null;
   let cachedWL = null;
   let cachedWeekIdToLabel = {};
@@ -263,15 +263,15 @@ tbody tr.total-row .cell-val.zero {
       if (!weekLabel || !cc) continue;
       if (!matrix[weekLabel] || matrix[weekLabel][cc] === undefined) continue;
 
-      const auditStatus    = wl.Audit_Status    ? wl.Audit_Status[i]    : null;
-      const roundingStatus = wl.Rounding_Status ? wl.Rounding_Status[i] : null;
+      const notesStatus    = String(getVal(wl, 'Notes_Status', i)    || '').trim();
+      const roundingStatus = String(getVal(wl, 'Rounding_Status', i) || '').trim();
 
       if (roundingStatus === ROUNDING_SKIP) {
         matrix[weekLabel][cc].skipped++;
         continue;
       }
 
-      if (auditStatus === AUDIT_COMPLETE) {
+      if (notesStatus === NOTES_COMPLETE) {
         matrix[weekLabel][cc].complete++;
       } else {
         matrix[weekLabel][cc].incomplete++;
