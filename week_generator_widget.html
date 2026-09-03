@@ -60,8 +60,9 @@ body {
   width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
   background: #aaa; transition: background 0.2s;
 }
-.scope-badge.active .dot { background: #2d6a4f; }
-.scope-badge.empty  .dot { background: #e0a800; }
+.scope-badge.active  .dot { background: #2d6a4f; }
+.scope-badge.empty   .dot { background: #e0a800; }
+.scope-badge.blocked .dot { background: #c0392b; }
 .scope-badge .info { flex: 1; }
 .scope-badge .label {
   font-size: 12px; font-weight: 600; color: #111;
@@ -77,6 +78,7 @@ body {
 }
 .scope-tag.empty   { background: #fff3cd; color: #856404; }
 .scope-tag.waiting { background: #e8f0fe; color: #1a56db; }
+.scope-tag.blocked { background: #fbe0dd; color: #a93226; }
 
 /* ── Pre-flight checklist ── */
 .checklist-section {
@@ -231,11 +233,22 @@ body {
 </div>
 
 <script>
+  // ── Config ────────────────────────────────────────────────────────────────
+  // If any of these column/table IDs differ in your doc, change them here.
+  // Column IDs are shown in the creator panel (right side) under "COLUMN ID".
+  const COV_TABLE = 'Weekly_Coverage_Schedule';
+  const CC_COL    = 'Care_Coordinator';   // used only for the scope guard
+
   // ── State ─────────────────────────────────────────────────────────────────
   // visibleRowIds: the row IDs currently shown in the linked Weekly Coverage
   // Schedule (driven by whichever CC is selected). We get these from onRecords
   // and use them to filter the fetchTable result (which has raw ref IDs).
+  //
+  // scopeCCs: the distinct Care Coordinators represented by those rows. If this
+  // is bigger than 1, the "Select By" link is not filtering and we must not
+  // generate — that is the failure that creates tasks for everyone at once.
   let visibleRowIds = new Set();
+  let scopeCCs      = new Set();
 
   // ── Init ──────────────────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
@@ -257,9 +270,21 @@ body {
   // onRecords fires whenever the linked table's visible rows change.
   // We only need the row IDs — fetchTable gives us the real reference values.
   grist.onRecords(function(records) {
-    visibleRowIds = new Set((records || []).map(r => r.id));
+    const recs = records || [];
+    visibleRowIds = new Set(recs.map(r => r.id));
+    scopeCCs = new Set(recs.map(r => ccName(r[CC_COL])).filter(Boolean));
     updateScopeBadge();
   });
+
+  // Care Coordinator may arrive as a plain string or as a Reference display
+  // object, depending on how the column is configured. Normalise both.
+  function ccName(v) {
+    if (v === null || v === undefined || v === '') return null;
+    if (typeof v === 'object') {
+      return v.Name || v.Full_Name || v.Care_Coordinator || String(v.id || '');
+    }
+    return String(v);
+  }
 
   function updateScopeBadge() {
     const badge = document.getElementById('scopeBadge');
@@ -276,9 +301,21 @@ body {
       tag.textContent = '0 rows';
       tag.className = 'scope-tag empty';
       btn.disabled = true;
+
+    } else if (scopeCCs.size > 1) {
+      // The widget is seeing more than one coordinator's rows. Generating now
+      // would create tasks for all of them, so block it and say how to fix it.
+      badge.className = 'scope-badge blocked';
+      label.textContent = `${scopeCCs.size} coordinators in view`;
+      count.textContent = `${n} rows — set "Select By" to the Care Coordinator summary`;
+      tag.textContent = 'blocked';
+      tag.className = 'scope-tag blocked';
+      btn.disabled = true;
+
     } else {
       badge.className = 'scope-badge active';
-      label.textContent = 'Coverage rows loaded';
+      const who = scopeCCs.size === 1 ? [...scopeCCs][0] : 'Coverage rows loaded';
+      label.textContent = who;
       count.textContent = `${n} row${n !== 1 ? 's' : ''} in current view`;
       tag.textContent = `${n} rows`;
       tag.className = 'scope-tag';
@@ -314,6 +351,36 @@ body {
 
   function clearLog() { document.getElementById('log').innerHTML = ''; }
 
+  // Grist stores a Date column as seconds since epoch at UTC midnight.
+  // Treat empty string / null / undefined as "no date", but keep 0 as a real value.
+  function toSeconds(v) {
+    if (v === null || v === undefined || v === '') return null;
+    const n = Number(v);
+    return isNaN(n) ? null : n;
+  }
+
+  // Choice List columns come back from fetchTable already wrapped as ['L', ...].
+  // Plain Choice / Text columns do not. Wrap only when needed.
+  function asChoiceList(v) {
+    if (v === null || v === undefined || v === '') return null;
+    return Array.isArray(v) ? v : ['L', v];
+  }
+
+  // Build rowId -> display name so log messages name the record instead of
+  // printing a bare reference ID nobody can look up.
+  function buildNameLookup(table) {
+    const candidates = ['Name', 'Full_Name', 'Facility_Name', 'Practitioner_Name',
+                        'Employee_Name', 'Facility', 'Title'];
+    const key = candidates.find(k => Array.isArray(table[k]));
+    const map = new Map();
+    for (let i = 0; i < table.id.length; i++) {
+      const val = key ? table[key][i] : null;
+      map.set(table.id[i], (val === null || val === undefined || val === '')
+        ? `#${table.id[i]}` : String(val));
+    }
+    return map;
+  }
+
   // ── Generate ──────────────────────────────────────────────────────────────
   async function generate() {
     const weekNum  = document.getElementById('weekNum').value.trim();
@@ -335,51 +402,89 @@ body {
       // onRecords which returns display values. We then filter to only the
       // rows that are currently visible (matching visibleRowIds).
       addLog('Fetching Weekly Coverage Schedule (raw)…', 'info');
-      const covTable = await grist.docApi.fetchTable('Weekly_Coverage_Schedule');
+      const covTable = await grist.docApi.fetchTable(COV_TABLE);
+      const hasCC = Array.isArray(covTable[CC_COL]);
 
-      // Build filtered list: only rows whose id is in visibleRowIds
       const covRows = [];
       for (let i = 0; i < covTable.id.length; i++) {
         if (visibleRowIds.has(covTable.id[i])) {
           covRows.push({
-            id:               covTable.id[i],
+            id:                covTable.id[i],
             Practitioner_Name: covTable.Practitioner_Name[i],  // raw Employee row ID
             Facility_Name:     covTable.Facility_Name[i],      // raw Facility row ID
             Coverage_Type:     covTable.Coverage_Type[i],
             Start_Date:        covTable.Start_Date[i],
             End_Date:          covTable.End_Date[i],
+            Care_Coordinator:  hasCC ? covTable[CC_COL][i] : null,
           });
         }
       }
       addLog(`✓ ${covRows.length} rows matched to current view`, 'success');
 
-      // ── 2. Duplicate check on filtered rows ───────────────────────────────
-      addLog('Checking for duplicates…', 'info');
-      const seen = new Map();
-      const duplicates = new Set();
-      for (const r of covRows) {
-        const key = `${r.Practitioner_Name}__${r.Facility_Name}`;
-        if (seen.has(key)) duplicates.add(key);
-        else seen.set(key, true);
-      }
-      if (duplicates.size > 0) {
-        addLog('🚫 Duplicates found — fix before generating:', 'error');
-        duplicates.forEach(d => addLog(`  ↳ ${d}`, 'error'));
-        return;
-      }
-      addLog('✓ No duplicates found', 'success');
+      // ── 2. Scope guard ────────────────────────────────────────────────────
+      // The whole widget rests on the "Select By" link filtering the rows down
+      // to one coordinator. If that link is missing or points at the wrong
+      // widget, onRecords silently returns the entire table. Catch it here
+      // rather than writing hundreds of rows for everyone.
+      if (hasCC) {
+        const inScope = new Set(
+          covRows.map(r => r.Care_Coordinator)
+                 .filter(v => v !== null && v !== undefined && v !== '' && v !== 0)
+        );
+        const inTable = new Set(
+          covTable[CC_COL].filter(v => v !== null && v !== undefined && v !== '' && v !== 0)
+        );
 
-      // ── 3. Validate reference tables ──────────────────────────────────────
-      addLog('Fetching Facility and Employee tables for validation…', 'info');
+        if (inScope.size > 1) {
+          addLog(`🚫 ${inScope.size} care coordinators are in scope — expected 1.`, 'error');
+          addLog('Fix: select this widget, open the right panel → Data → Select By,', 'error');
+          addLog('and choose the Care Coordinator summary widget. Then reselect your name.', 'error');
+          return;
+        }
+        if (inTable.size > 1 && covRows.length === covTable.id.length) {
+          addLog('🚫 Every row in the table is in scope — the Select By link is not filtering.', 'error');
+          addLog('Fix: right panel → Data → Select By → Care Coordinator summary widget.', 'error');
+          return;
+        }
+      } else {
+        addLog(`ℹ No "${CC_COL}" column found — scope guard is off. Check the column ID.`, 'info');
+      }
+
+      // ── 3. Reference tables: validation + readable names ──────────────────
+      addLog('Fetching Facility and Employee tables…', 'info');
       const [facilityTable, employeeTable] = await Promise.all([
         grist.docApi.fetchTable('Facility'),
         grist.docApi.fetchTable('Employee'),
       ]);
-      const validFacilityIds  = new Set(facilityTable.id);
-      const validEmployeeIds  = new Set(employeeTable.id);
+      const validFacilityIds = new Set(facilityTable.id);
+      const validEmployeeIds = new Set(employeeTable.id);
+      const facilityNames    = buildNameLookup(facilityTable);
+      const employeeNames    = buildNameLookup(employeeTable);
       addLog(`✓ ${validFacilityIds.size} facilities, ${validEmployeeIds.size} employees loaded`, 'success');
 
-      // ── 4. Find or create shared Weeks_Table row ──────────────────────────
+      const facLabel = id => facilityNames.get(id) || `facility #${id}`;
+      const empLabel = id => employeeNames.get(id) || `practitioner #${id}`;
+
+      // ── 4. Duplicate check on the in-scope rows ───────────────────────────
+      addLog('Checking for duplicates…', 'info');
+      const seen = new Set();
+      const duplicates = new Set();
+      for (const r of covRows) {
+        const key = `${r.Practitioner_Name}__${r.Facility_Name}`;
+        if (seen.has(key)) duplicates.add(key);
+        else seen.add(key);
+      }
+      if (duplicates.size > 0) {
+        addLog('🚫 Duplicate practitioner + facility pairs — delete one of each, then re-run:', 'error');
+        duplicates.forEach(key => {
+          const [p, f] = key.split('__');
+          addLog(`  ↳ ${empLabel(Number(p))} at ${facLabel(Number(f))}`, 'error');
+        });
+        return;
+      }
+      addLog('✓ No duplicates found', 'success');
+
+      // ── 5. Find or create the shared Weeks_Table row ──────────────────────
       const weekLabel = `Week ${weekNum} - ${formatDate(weekDate)}`;
       addLog(`Checking Weeks_Table for "${weekLabel}"…`, 'info');
       const weeksTable = await grist.docApi.fetchTable('Weeks_Table');
@@ -394,14 +499,16 @@ body {
         const result = await grist.docApi.applyUserActions([
           ['AddRecord', 'Weeks_Table', null, { Week: weekLabel }]
         ]);
-        weekId = result.rowIds?.[0]
-          || result.retValues?.[0]
-          || (Array.isArray(result) ? result[0] : null)
-          || result;
+        weekId = result?.retValues?.[0] ?? result?.rowIds?.[0]
+              ?? (Array.isArray(result) ? result[0] : null);
+        if (typeof weekId !== 'number') {
+          addLog('✗ Could not read the new week row ID — nothing further was written.', 'error');
+          return;
+        }
         addLog(`✓ Week created (id: ${weekId})`, 'success');
       }
 
-      // ── 5. Check already-existing Week_List rows for idempotency ─────────
+      // ── 6. Already-generated rows, so re-running is safe ──────────────────
       addLog('Checking for already-generated rows…', 'info');
       const existingList = await grist.docApi.fetchTable('Week_List');
       const existingKeys = new Set();
@@ -412,13 +519,17 @@ body {
       }
       addLog(`✓ ${existingKeys.size} rows already exist for this week`, 'info');
 
-      // ── 6. Date window ────────────────────────────────────────────────────
-      const weekStartDate = new Date(weekDate + 'T00:00:00');
-      const weekEndDate   = new Date(weekStartDate);
-      weekEndDate.setDate(weekStartDate.getDate() + 6);
+      // ── 7. Date window, in UTC seconds ────────────────────────────────────
+      // Grist Date values are UTC-midnight seconds. Building a JS Date from the
+      // input string gives local midnight instead, which is 5–6 hours off in
+      // Chicago and drops rows that start or end exactly on the week boundary.
+      const [wy, wm, wd] = weekDate.split('-').map(Number);
+      const wkStart = Date.UTC(wy, wm - 1, wd) / 1000;
+      const wkEnd   = wkStart + 6 * 86400;
 
-      // ── 7. Build actions ──────────────────────────────────────────────────
-      let created = 0, skipped = 0, alreadyExists = 0;
+      // ── 8. Build the actions, accounting for every row ────────────────────
+      let created = 0, skipped = 0, alreadyExists = 0,
+          notYetStarted = 0, alreadyEnded = 0;
       const actions = [];
 
       for (const r of covRows) {
@@ -426,52 +537,69 @@ body {
         const facilityId     = r.Facility_Name;
 
         if (!practitionerId || !facilityId) {
-          addLog(`⚠ Row ${r.id}: missing practitioner or facility — skipped`, 'error');
+          addLog(`⚠ Row ${r.id}: practitioner or facility is blank — fill both in, then re-run`, 'error');
           skipped++; continue;
         }
         if (!validFacilityIds.has(facilityId)) {
-          addLog(`⚠ Row ${r.id}: facility ref ${facilityId} invalid — skipped`, 'error');
+          addLog(`⚠ Row ${r.id}: facility is not linked to the master table — pick it from the dropdown`, 'error');
           skipped++; continue;
         }
         if (!validEmployeeIds.has(practitionerId)) {
-          addLog(`⚠ Row ${r.id}: practitioner ref ${practitionerId} invalid — skipped`, 'error');
+          addLog(`⚠ Row ${r.id}: practitioner is not linked to the master table — pick it from the dropdown`, 'error');
           skipped++; continue;
         }
 
-        // Active date check
-        const start = r.Start_Date ? new Date(r.Start_Date * 1000) : null;
-        const end   = r.End_Date   ? new Date(r.End_Date   * 1000) : null;
-        const isActive = start && start <= weekEndDate && (!end || end >= weekStartDate);
-        if (!isActive) continue;
+        const s = toSeconds(r.Start_Date);
+        const e = toSeconds(r.End_Date);
 
-        // Idempotency
+        if (s === null) {
+          addLog(`⚠ ${empLabel(practitionerId)} at ${facLabel(facilityId)}: no Start Date — skipped`, 'error');
+          skipped++; continue;
+        }
+        if (s > wkEnd)                { notYetStarted++; continue; }
+        if (e !== null && e < wkStart) { alreadyEnded++;  continue; }
+
         const rowKey = `${practitionerId}__${facilityId}`;
         if (existingKeys.has(rowKey)) { alreadyExists++; continue; }
+        existingKeys.add(rowKey);   // guards against duplicates inside this run
 
         actions.push(['AddRecord', 'Week_List', null, {
           Week:              weekId,
           Practitioner_Name: practitionerId,
           Facility_Name:     facilityId,
-          Coverage_Type:     ['L', r.Coverage_Type],
+          Coverage_Type:     asChoiceList(r.Coverage_Type),
           Audit_Status:      'Not Initiated'
         }]);
         created++;
       }
 
-      if (alreadyExists > 0) addLog(`ℹ ${alreadyExists} rows already exist — skipped`, 'info');
-      if (skipped > 0)       addLog(`⚠ ${skipped} rows skipped due to invalid references`, 'error');
+      // Every row lands in exactly one bucket, so these always sum to the total.
+      addLog(`Rows in scope: ${covRows.length} — to create ${created}, ` +
+             `already there ${alreadyExists}, not started ${notYetStarted}, ` +
+             `ended ${alreadyEnded}, skipped ${skipped}`, 'info');
 
       if (actions.length === 0) {
         addLog(alreadyExists > 0
           ? '✅ All tasks for this group are already generated for this week!'
-          : '⚠ No active rows to generate', 'error');
+          : '⚠ Nothing to create — no coverage rows are active during this week', 'error');
         return;
       }
 
+      // ── 9. Write in batches, stopping cleanly on failure ──────────────────
       addLog(`Creating ${created} Week_List rows…`, 'info');
+      let done = 0;
       for (let i = 0; i < actions.length; i += 50) {
-        await grist.docApi.applyUserActions(actions.slice(i, i + 50));
-        addLog(`✓ ${Math.min(i + 50, actions.length)}/${actions.length} rows created`, 'success');
+        const batch = actions.slice(i, i + 50);
+        try {
+          await grist.docApi.applyUserActions(batch);
+          done += batch.length;
+          addLog(`✓ ${done}/${actions.length} rows created`, 'success');
+        } catch (err) {
+          addLog(`✗ Stopped after ${done} of ${actions.length} rows: ${err.message || err}`, 'error');
+          addLog('The rows already created are kept. Fix the issue and run again —', 'error');
+          addLog('existing rows are detected and skipped.', 'error');
+          return;
+        }
       }
 
       addLog(`✅ Done! ${created} weekly tasks added for ${weekLabel}`, 'success');
