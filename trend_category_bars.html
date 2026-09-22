@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trend Category Bars</title>
+<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+<style>
+  :root {
+    --down:  #E00A17;
+    --flat:  #157AFB;
+    --up:    #126E0E;
+    --none:  #9E9E9E;
+    --ink:   #1a1a1a;
+    --muted: #6b6b6b;
+    --track: #00000010;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --ink: #f0f0f0; --muted: #a0a0a0; --track: #ffffff14; }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 14px 16px;
+    font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--ink);
+    background: transparent;
+  }
+
+  #total {
+    color: var(--muted);
+    font-size: 12px;
+    margin-bottom: 12px;
+  }
+
+  .row { margin-bottom: 14px; }
+
+  .head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 4px;
+  }
+
+  .name { font-weight: 600; }
+
+  .value { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .value b { color: var(--ink); font-size: 15px; margin-right: 4px; }
+
+  .track {
+    height: 22px;
+    background: var(--track);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width .3s ease;
+    min-width: 2px;
+  }
+
+  #empty { color: var(--muted); padding: 20px 0; }
+</style>
+</head>
+<body>
+
+<div id="total"></div>
+<div id="chart"></div>
+
+<script>
+  // Fixed display order and color per category. Anything the data contains
+  // that isn't listed here is appended at the end in grey.
+  const CATEGORIES = [
+    { label: "Trending Down", color: "var(--down)" },
+    { label: "At Average",    color: "var(--flat)" },
+    { label: "Trending Up",   color: "var(--up)"   },
+    { label: "No Baseline",   color: "var(--none)" },
+  ];
+
+  const chart = document.getElementById("chart");
+  const totalEl = document.getElementById("total");
+
+  function tally(records) {
+    const counts = new Map();
+    for (const rec of records) {
+      const key = (rec.Category === undefined || rec.Category === null || rec.Category === "")
+        ? "No Baseline"
+        : String(rec.Category);
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+    return counts;
+  }
+
+  function order(counts) {
+    const known = CATEGORIES
+      .filter(c => counts.has(c.label))
+      .map(c => ({ ...c, count: counts.get(c.label) }));
+
+    const extras = [...counts.keys()]
+      .filter(k => !CATEGORIES.some(c => c.label === k))
+      .sort()
+      .map(k => ({ label: k, color: "var(--none)", count: counts.get(k) }));
+
+    return known.concat(extras);
+  }
+
+  function render(records) {
+    if (!records || !records.length) {
+      chart.innerHTML = '<div id="empty">No rows to summarize.</div>';
+      totalEl.textContent = "";
+      return;
+    }
+
+    const rows = order(tally(records));
+    const total = records.length;
+    const max = Math.max(...rows.map(r => r.count), 1);
+
+    totalEl.textContent = total + " facilities";
+
+    chart.innerHTML = rows.map(r => {
+      const pct = Math.round((r.count / total) * 100);
+      const width = (r.count / max) * 100;
+      return `
+        <div class="row">
+          <div class="head">
+            <span class="name">${escapeHtml(r.label)}</span>
+            <span class="value"><b>${r.count}</b>${pct}%</span>
+          </div>
+          <div class="track">
+            <div class="fill" style="width:${width}%;background:${r.color}"></div>
+          </div>
+        </div>`;
+    }).join("");
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => (
+      { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
+    ));
+  }
+
+  grist.ready({
+    requiredAccess: "read table",
+    columns: [
+      {
+        name: "Category",
+        title: "Trend category",
+        description: "The Choice or Text column holding the trend classification",
+        type: "Choice,Text",
+        optional: false,
+      },
+    ],
+  });
+
+  grist.onRecords(records => {
+    render(grist.mapColumnNames(records) || []);
+  });
+</script>
+
+</body>
+</html>
